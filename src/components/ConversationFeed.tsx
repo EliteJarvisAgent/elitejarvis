@@ -148,10 +148,16 @@ export function ConversationFeed() {
 
   return (
     <div className="flex flex-col h-full items-center">
+      {/* Orb + agents in center */}
+      <div className="flex-1 flex items-center justify-center w-full px-4">
+        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} onInterrupt={handleInterrupt} onUserInteraction={primeAudioPlayback} />
+      </div>
+
+      {/* Message transcript below the orb */}
       <div
         ref={feedRef}
-        className="w-full overflow-y-auto px-3 sm:px-6 pt-4 pb-2 scrollbar-thin"
-        style={{ maxHeight: "30%" }}
+        className="w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-4 scrollbar-thin"
+        style={{ maxHeight: "40%", minHeight: messages.length > 0 ? "80px" : "0px" }}
       >
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
@@ -177,10 +183,17 @@ export function ConversationFeed() {
             </motion.div>
           ))}
         </AnimatePresence>
-      </div>
-
-      <div className="flex-1 flex items-center justify-center w-full px-4">
-        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} onInterrupt={handleInterrupt} onUserInteraction={primeAudioPlayback} />
+        {isProcessing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex justify-start mb-2"
+          >
+            <div className="glass-panel-elevated rounded-2xl rounded-tl-md px-4 py-2 text-sm text-muted-foreground">
+              <span className="animate-pulse">Jarvis is thinking…</span>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );
