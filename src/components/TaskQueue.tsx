@@ -155,12 +155,6 @@ export function TaskQueue() {
                       <User2 className="h-3 w-3" />
                       <span className="text-[11px] font-mono">{task.assignee}</span>
                     </div>
-                    {task.eta && (
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        <span className="text-[11px] font-mono">{task.eta}</span>
-                      </div>
-                    )}
                     <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border border-border/40 text-muted-foreground ml-auto`}>
                       {pc.label}
                     </span>
