@@ -23,13 +23,10 @@ async function speakWithTTS(
   audioRef: React.MutableRefObject<HTMLAudioElement | null>
 ): Promise<void> {
   try {
-    const data = await api.googleTTS(text);
-    if (!data.audioContent) throw new Error("No audio content returned");
+    const ttsData = await api.googleTTS(text);
+    if (!ttsData.audioContent) throw new Error("No audio content returned");
 
-    const data = await response.json();
-    if (!data.audioContent) throw new Error("No audio content returned");
-
-    const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+    const audioUrl = `data:audio/mpeg;base64,${ttsData.audioContent}`;
     const audio = audioRef.current ?? new Audio();
     audioRef.current = audio;
 
