@@ -43,7 +43,7 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
   const [activeConnections, setActiveConnections] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!isSpeaking) {
+    if (!isProcessing) {
       const timer = setTimeout(() => {
         setActiveConnections([]);
         setAgents((prev) => prev.map((a) => ({ ...a, status: "idle" as const })));
@@ -51,6 +51,7 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
       return () => clearTimeout(timer);
     }
 
+    // When processing, activate 1-2 random agents to show work
     const activate = () => {
       const count = 1 + Math.floor(Math.random() * 2);
       const shuffled = [...initialAgents].sort(() => Math.random() - 0.5);
@@ -67,7 +68,7 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
     activate();
     const interval = setInterval(activate, 2200);
     return () => clearInterval(interval);
-  }, [isSpeaking]);
+  }, [isProcessing]);
 
   const centerX = 0;
   const centerY = 0;
