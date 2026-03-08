@@ -72,9 +72,10 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false }:
   }, [isSpeaking]);
 
   const centerX = 0;
-  const centerY = -20;
+  const centerY = 0;
   const radius = 180;
   const nodeSize = 48;
+  const agentOrbCenterYOffset = 30;
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: 420, height: 380 }}>
@@ -92,9 +93,9 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false }:
               {/* Connection line */}
               <motion.line
                 x1={centerX}
-                y1={centerY + 20}
+                y1={centerY}
                 x2={pos.x}
-                y2={pos.y}
+                y2={pos.y - agentOrbCenterYOffset}
                 stroke={
                   isConnected
                     ? "hsl(185, 90%, 48%)"
@@ -114,10 +115,10 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false }:
                 <motion.circle
                   r={3}
                   fill="hsl(185, 90%, 60%)"
-                  initial={{ cx: centerX, cy: centerY + 20, opacity: 0 }}
+                  initial={{ cx: centerX, cy: centerY, opacity: 0 }}
                   animate={{
                     cx: [centerX, pos.x],
-                    cy: [centerY + 20, pos.y],
+                    cy: [centerY, pos.y - agentOrbCenterYOffset],
                     opacity: [0, 1, 1, 0],
                   }}
                   transition={{
