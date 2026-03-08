@@ -32,9 +32,10 @@ interface AgentNetworkProps {
   onTranscript: (text: string) => void;
   isSpeaking: boolean;
   isProcessing?: boolean;
+  onInterrupt?: () => void;
 }
 
-export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false }: AgentNetworkProps) {
+export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, onInterrupt }: AgentNetworkProps) {
   const [agents, setAgents] = useState<SubAgent[]>(initialAgents);
   const [activeConnections, setActiveConnections] = useState<string[]>([]);
 
@@ -225,7 +226,7 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false }:
 
       {/* Central Jarvis orb */}
       <div className="absolute" style={{ top: "calc(50% - 80px)", left: "calc(50% - 80px)" }}>
-        <VoiceOrb onTranscript={onTranscript} isSpeaking={isSpeaking} />
+        <VoiceOrb onTranscript={onTranscript} isSpeaking={isSpeaking} onInterrupt={onInterrupt} />
       </div>
     </div>
   );
