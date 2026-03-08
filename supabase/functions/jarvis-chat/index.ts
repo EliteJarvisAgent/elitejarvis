@@ -23,7 +23,9 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const rawBody = await req.text();
+    const parsedBody = rawBody ? JSON.parse(rawBody) : {};
+    const messages = Array.isArray(parsedBody.messages) ? parsedBody.messages : [];
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 
     if (!OPENROUTER_API_KEY) {
