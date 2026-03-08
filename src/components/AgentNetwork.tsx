@@ -42,33 +42,30 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
   const [agents, setAgents] = useState<SubAgent[]>(initialAgents);
   const [activeConnections, setActiveConnections] = useState<string[]>([]);
 
+  // Connection lines only activate when specific agents are explicitly called
+  // via activateAgents(). No random activation during general processing.
+  const activateAgents = useCallback((agentIds: string[]) => {
+    setActiveConnections(agentIds);
+    setAgents((prev) =>
+      prev.map((a) => ({
+        ...a,
+        status: agentIds.includes(a.id) ? "active" : "idle",
+      }))
+    );
+  }, []);
+
+  const deactivateAll = useCallback(() => {
+    setActiveConnections([]);
+    setAgents((prev) => prev.map((a) => ({ ...a, status: "idle" as const })));
+  }, []);
+
+  // When processing stops, clear any active connections
   useEffect(() => {
     if (!isProcessing) {
-      const timer = setTimeout(() => {
-        setActiveConnections([]);
-        setAgents((prev) => prev.map((a) => ({ ...a, status: "idle" as const })));
-      }, 600);
+      const timer = setTimeout(deactivateAll, 600);
       return () => clearTimeout(timer);
     }
-
-    // When processing, activate 1-2 random agents to show work
-    const activate = () => {
-      const count = 1 + Math.floor(Math.random() * 2);
-      const shuffled = [...initialAgents].sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, count).map((a) => a.id);
-      setActiveConnections(selected);
-      setAgents((prev) =>
-        prev.map((a) => ({
-          ...a,
-          status: selected.includes(a.id) ? "active" : a.status === "active" ? "done" : "idle",
-        }))
-      );
-    };
-
-    activate();
-    const interval = setInterval(activate, 2200);
-    return () => clearInterval(interval);
-  }, [isProcessing]);
+  }, [isProcessing, deactivateAll]);
 
   const centerX = 0;
   const centerY = 0;
