@@ -144,8 +144,8 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
 
         {/* Horizontal bus line */}
         <motion.line
-          x1={agentPositions[0].x} y1={210}
-          x2={agentPositions[4].x} y2={210}
+          x1={agentPositions[0].x} y1={170}
+          x2={agentPositions[4].x} y2={170}
           stroke="hsl(185, 25%, 18%)"
           strokeWidth={0.7}
           opacity={0.2}
