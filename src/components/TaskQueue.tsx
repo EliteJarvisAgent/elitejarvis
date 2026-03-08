@@ -1,27 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { Clock, User2, MoreHorizontal, CheckCircle2, Loader2, AlertOctagon, Timer } from "lucide-react";
+import { useTasks } from "@/hooks/use-tasks";
+import { agents } from "@/data/agents";
 
-type TaskStatus = "in-progress" | "pending" | "done" | "blocked";
+type DisplayStatus = "in-progress" | "pending" | "done" | "blocked";
 
-interface Task {
+interface DisplayTask {
   id: string;
   title: string;
-  status: TaskStatus;
+  status: DisplayStatus;
   priority: "high" | "medium" | "low";
   assignee: string;
-  eta?: string;
 }
 
-const initialTasks: Task[] = [
-  { id: "1", title: "Q1 Revenue Report — Final Review", status: "in-progress", priority: "high", assignee: "Sarah", eta: "2h" },
-  { id: "2", title: "Website Redesign — Brand Guidelines", status: "blocked", priority: "high", assignee: "Marketing", eta: "24h" },
-  { id: "3", title: "Client Onboarding Flow v2", status: "in-progress", priority: "medium", assignee: "Jarvis", eta: "4h" },
-  { id: "4", title: "Deploy Staging Environment", status: "pending", priority: "medium", assignee: "DevOps Agent" },
-  { id: "5", title: "Weekly Team Sync Notes", status: "done", priority: "low", assignee: "Jarvis" },
-  { id: "6", title: "Update CRM Pipeline Stages", status: "pending", priority: "low", assignee: "Unassigned" },
-  { id: "7", title: "Security Audit — API Endpoints", status: "in-progress", priority: "high", assignee: "SecBot" },
-];
+function mapStatus(s: string): DisplayStatus {
+  if (s === "in-progress") return "in-progress";
+  if (s === "done") return "done";
+  if (s === "review") return "blocked";
+  return "pending"; // backlog, todo
+}
+
+function mapPriority(p: string): "high" | "medium" | "low" {
+  if (p === "critical" || p === "high") return "high";
+  if (p === "medium") return "medium";
+  return "low";
+}
 
 const statusConfig: Record<TaskStatus, { label: string; icon: typeof CheckCircle2; className: string; dotClass: string }> = {
   "in-progress": {
