@@ -29,7 +29,7 @@ async function speakWithElevenLabs(
   text: string,
   onStart: () => void,
   onEnd: () => void,
-  audioRef?: React.MutableRefObject<HTMLAudioElement | null>
+  audioRef: React.MutableRefObject<HTMLAudioElement | null>
 ): Promise<void> {
   try {
     const response = await fetch(`${CLOUD_BASE_URL}/functions/v1/elevenlabs-tts`, {
@@ -43,27 +43,42 @@ async function speakWithElevenLabs(
     });
 
     if (!response.ok) throw new Error(`TTS failed: ${response.status}`);
+
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
-    const audio = new Audio(audioUrl);
-    if (audioRef) audioRef.current = audio;
+    const audio = audioRef.current ?? new Audio();
+    audioRef.current = audio;
+
+    audio.pause();
+    audio.src = audioUrl;
+    audio.preload = "auto";
 
     audio.onplay = onStart;
-    audio.onended = () => { URL.revokeObjectURL(audioUrl); if (audioRef) audioRef.current = null; onEnd(); };
-    audio.onerror = () => { URL.revokeObjectURL(audioUrl); if (audioRef) audioRef.current = null; onEnd(); };
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+      onEnd();
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(audioUrl);
+      onEnd();
+    };
+
     await audio.play();
   } catch (err) {
     console.warn("ElevenLabs TTS unavailable, using browser TTS:", err);
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
-      utter.rate = 0.95; utter.pitch = 0.85; utter.volume = 1;
+      utter.rate = 0.95;
+      utter.pitch = 0.85;
+      utter.volume = 1;
       const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find(v => v.lang.startsWith("en-GB") && /male|daniel|george|james/i.test(v.name))
-        || voices.find(v => v.lang.startsWith("en") && /male|daniel|george|james|david|mark|alex/i.test(v.name))
-        || voices.find(v => v.lang.startsWith("en-GB") && !/female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa/i.test(v.name))
-        || voices.find(v => v.lang.startsWith("en") && !/female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa/i.test(v.name))
-        || voices[0];
+      const preferred =
+        voices.find((v) => v.lang.startsWith("en-GB") && /male|daniel|george|james/i.test(v.name)) ||
+        voices.find((v) => v.lang.startsWith("en") && /male|daniel|george|james|david|mark|alex/i.test(v.name)) ||
+        voices.find((v) => v.lang.startsWith("en-GB") && !/female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa/i.test(v.name)) ||
+        voices.find((v) => v.lang.startsWith("en") && !/female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa/i.test(v.name)) ||
+        voices[0];
       if (preferred) utter.voice = preferred;
       onStart();
       utter.onend = onEnd;
@@ -80,84 +95,115 @@ export function ConversationFeed() {
   const { messages, chatHistory, addMessage } = useMessages();
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [voiceNotice, setVoiceNotice] = useState<string>("");
+  const [manualText, setManualText] = useState("");
   const feedRef = useRef<HTMLDivElement>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const handleInterrupt = useCallback(() => {
-    if (currentAudioRef.current) { currentAudioRef.current.pause(); currentAudioRef.current = null; }
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.currentTime = 0;
+    }
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setIsSpeaking(false);
     setIsProcessing(false);
   }, []);
 
   const primeAudioPlayback = useCallback(() => {
-    const probe = new Audio();
-    probe.muted = true;
-    const maybePromise = probe.play();
+    const audio = currentAudioRef.current ?? new Audio();
+    currentAudioRef.current = audio;
+    audio.muted = true;
+    const maybePromise = audio.play();
     if (maybePromise?.catch) {
       maybePromise.catch(() => undefined).finally(() => {
-        probe.pause();
-        probe.muted = false;
+        audio.pause();
+        audio.muted = false;
       });
     }
   }, []);
 
   useEffect(() => {
     if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
-  }, [messages]);
+  }, [messages, isProcessing]);
 
-  const doSend = useCallback(async (text: string) => {
-    if (!text.trim()) return;
-    handleInterrupt();
-
-    // Never block the voice flow on DB errors
-    try {
-      await addMessage("matthew", text);
-    } catch (error) {
-      console.warn("User message save failed:", error);
-    }
-
-    setIsProcessing(true);
-    const newHistory: ChatMsg[] = [...chatHistory, { role: "user", content: text }];
-
-    try {
-      const reply = await askJarvis(newHistory);
+  const doSend = useCallback(
+    async (text: string) => {
+      if (!text.trim()) return;
+      setVoiceNotice("");
+      handleInterrupt();
 
       try {
-        await addMessage("jarvis", reply);
+        await addMessage("matthew", text);
       } catch (error) {
-        console.warn("Jarvis message save failed:", error);
+        console.warn("User message save failed:", error);
       }
 
-      speakWithElevenLabs(
-        reply,
-        () => { setIsProcessing(false); setIsSpeaking(true); },
-        () => setIsSpeaking(false),
-        currentAudioRef
-      );
-    } catch (err) {
-      console.error("Jarvis error:", err);
-      setIsProcessing(false);
+      setIsProcessing(true);
+      const newHistory: ChatMsg[] = [...chatHistory, { role: "user", content: text }];
+
       try {
-        await addMessage("jarvis", "Apologies sir, I'm experiencing a temporary disruption. Please try again.");
-      } catch {
-        // no-op: local fallback handled in hook
+        const reply = await askJarvis(newHistory);
+
+        try {
+          await addMessage("jarvis", reply);
+        } catch (error) {
+          console.warn("Jarvis message save failed:", error);
+        }
+
+        await speakWithElevenLabs(
+          reply,
+          () => {
+            setIsProcessing(false);
+            setIsSpeaking(true);
+          },
+          () => setIsSpeaking(false),
+          currentAudioRef
+        );
+      } catch (err) {
+        console.error("Jarvis error:", err);
+        setIsProcessing(false);
+        try {
+          await addMessage("jarvis", "Apologies sir, I'm experiencing a temporary disruption. Please try again.");
+        } catch {
+          // no-op
+        }
       }
-    }
-  }, [chatHistory, handleInterrupt, addMessage]);
+    },
+    [chatHistory, handleInterrupt, addMessage]
+  );
+
+  const sendManualText = useCallback(() => {
+    if (!manualText.trim()) return;
+    doSend(manualText);
+    setManualText("");
+  }, [doSend, manualText]);
 
   return (
     <div className="flex flex-col h-full items-center">
-      {/* Orb + agents in center */}
       <div className="flex-1 flex items-center justify-center w-full px-4">
-        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} onInterrupt={handleInterrupt} onUserInteraction={primeAudioPlayback} />
+        <AgentNetwork
+          onTranscript={doSend}
+          isSpeaking={isSpeaking}
+          isProcessing={isProcessing}
+          onInterrupt={handleInterrupt}
+          onUserInteraction={primeAudioPlayback}
+          onVoiceUnavailable={setVoiceNotice}
+        />
       </div>
 
-      {/* Message transcript below the orb */}
+      {voiceNotice && (
+        <div className="w-full px-3 pb-2">
+          <div className="rounded-md border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+            {voiceNotice}
+          </div>
+        </div>
+      )}
+
       <div
         ref={feedRef}
-        className="w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-4 scrollbar-thin"
-        style={{ maxHeight: "40%", minHeight: messages.length > 0 ? "80px" : "0px" }}
+        className="w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-2 scrollbar-thin"
+        style={{ maxHeight: "40%", minHeight: messages.length > 0 || isProcessing ? "80px" : "0px" }}
       >
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
@@ -183,17 +229,34 @@ export function ConversationFeed() {
             </motion.div>
           ))}
         </AnimatePresence>
+
         {isProcessing && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex justify-start mb-2"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start mb-2">
             <div className="glass-panel-elevated rounded-2xl rounded-tl-md px-4 py-2 text-sm text-muted-foreground">
               <span className="animate-pulse">Jarvis is thinking…</span>
             </div>
           </motion.div>
         )}
+      </div>
+
+      <div className="w-full px-3 sm:px-6 pb-3">
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-2 py-2">
+          <input
+            value={manualText}
+            onChange={(e) => setManualText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") sendManualText();
+            }}
+            placeholder="Type to chat if voice is unavailable"
+            className="flex-1 bg-transparent px-2 py-1 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+          />
+          <button
+            onClick={sendManualText}
+            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+          >
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );
