@@ -79,6 +79,8 @@ export function TaskQueue() {
   useEffect(() => {
     setTasks(displayTasks);
   }, [displayTasks]);
+
+  return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-5 py-4 border-b border-border/40">
