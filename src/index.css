@@ -6,6 +6,67 @@
 
 @layer base {
   :root {
+    --background: 0 0% 98%;
+    --foreground: 222 15% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 15% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 15% 12%;
+
+    --primary: 200 90% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 15% 25%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 10% 46%;
+
+    --accent: 160 60% 42%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 200 90% 45%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 15% 12%;
+    --sidebar-primary: 200 90% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 222 15% 12%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 200 90% 45%;
+
+    /* Status tokens */
+    --success: 160 60% 42%;
+    --success-foreground: 160 60% 92%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 12%;
+    --info: 210 90% 55%;
+    --info-foreground: 210 90% 95%;
+
+    /* Glow effects */
+    --glow-primary: 0 2px 8px hsl(200 90% 45% / 0.1);
+    --glow-success: 0 2px 8px hsl(160 60% 42% / 0.1);
+    --glow-warning: 0 2px 8px hsl(38 92% 50% / 0.1);
+    --glow-accent: 0 2px 8px hsl(160 60% 42% / 0.1);
+
+    /* Card elevation */
+    --shadow-card: 0 1px 3px hsl(222 15% 12% / 0.06), 0 1px 2px hsl(222 15% 12% / 0.04);
+    --shadow-card-hover: 0 4px 12px hsl(222 15% 12% / 0.08);
+
+    font-family: 'Inter', sans-serif;
+  }
+
+  .dark {
     --background: 222 30% 6%;
     --foreground: 210 20% 92%;
 
@@ -34,8 +95,6 @@
     --input: 222 18% 16%;
     --ring: 185 90% 48%;
 
-    --radius: 0.75rem;
-
     --sidebar-background: 222 28% 7%;
     --sidebar-foreground: 210 20% 92%;
     --sidebar-primary: 185 90% 48%;
@@ -62,8 +121,6 @@
     /* Card elevation */
     --shadow-card: 0 4px 24px -4px hsl(222 30% 4% / 0.5);
     --shadow-card-hover: 0 8px 32px -4px hsl(185 90% 48% / 0.12);
-
-    font-family: 'Inter', sans-serif;
   }
 }
 
