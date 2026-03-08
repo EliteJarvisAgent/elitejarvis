@@ -76,7 +76,7 @@ export function useTasks() {
             description: data.description || "",
             status: data.status as TaskStatus,
             priority: data.priority as TaskPriority,
-            assigneeId: data.assignee_id || data.assigned_agent || null,
+            assigneeId: data.assignee_id || null,
             createdAt: data.created_at?.split("T")[0] ?? "",
           };
           setTasks((prev) => {
