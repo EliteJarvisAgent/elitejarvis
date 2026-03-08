@@ -106,6 +106,21 @@ export function ConversationFeed() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const handleInterrupt = useCallback(() => {
+    // Stop any playing audio
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+    // Stop browser speech synthesis
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+    setIsProcessing(false);
+  }, []);
 
   useEffect(() => {
     if (feedRef.current) {
