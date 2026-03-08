@@ -5,7 +5,10 @@ import { useMessages } from "@/hooks/use-messages";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
-import { SUPABASE_URL as CLOUD_BASE_URL, SUPABASE_KEY as CLOUD_KEY } from "@/lib/supabase-client";
+import { supabase } from "@/integrations/supabase/client";
+
+const CLOUD_BASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 async function askJarvis(history: ChatMsg[]): Promise<string> {
   const response = await fetch(`${CLOUD_BASE_URL}/functions/v1/jarvis-chat`, {
