@@ -212,32 +212,39 @@ export function ConversationFeed() {
   }, [doSend, manualText]);
 
   return (
-    <div className="flex flex-col h-full items-center">
-      <div className="flex-1 flex items-center justify-center w-full px-4">
-        <AgentNetwork
-          onTranscript={doSend}
-          isSpeaking={isSpeaking}
-          isProcessing={isProcessing}
-          onInterrupt={handleInterrupt}
-          onUserInteraction={primeAudioPlayback}
-          onVoiceUnavailable={setVoiceNotice}
-          onTranscriptPreview={setLiveTranscript}
-          onListeningChange={setIsListening}
-        />
+    <div className="relative h-full w-full flex flex-col">
+      {/* Orb — always centered in the full area */}
+      <div className="absolute inset-0 flex items-center justify-center px-4 pointer-events-none">
+        <div className="pointer-events-auto">
+          <AgentNetwork
+            onTranscript={doSend}
+            isSpeaking={isSpeaking}
+            isProcessing={isProcessing}
+            onInterrupt={handleInterrupt}
+            onUserInteraction={primeAudioPlayback}
+            onVoiceUnavailable={setVoiceNotice}
+            onTranscriptPreview={setLiveTranscript}
+            onListeningChange={setIsListening}
+          />
+        </div>
       </div>
 
+      {/* Spacer pushes transcript to bottom */}
+      <div className="flex-1" />
+
       {voiceNotice && (
-        <div className="w-full px-3 pb-2">
+        <div className="w-full px-3 pb-2 relative z-10">
           <div className="rounded-md border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
             {voiceNotice}
           </div>
         </div>
       )}
 
+      {/* Transcript — fixed at bottom, scrolls independently */}
       <div
         ref={feedRef}
-        className="w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-2 scrollbar-thin"
-        style={{ maxHeight: "40%", minHeight: messages.length > 0 || isProcessing || isListening || !!liveTranscript ? "80px" : "56px" }}
+        className="relative z-10 w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-2 scrollbar-thin"
+        style={{ maxHeight: "35%", minHeight: messages.length > 0 || isProcessing || isListening || !!liveTranscript ? "80px" : "56px" }}
       >
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
@@ -286,7 +293,8 @@ export function ConversationFeed() {
         )}
       </div>
 
-      <div className="w-full px-3 sm:px-6 pb-3">
+      {/* Text input — always at very bottom */}
+      <div className="relative z-10 w-full px-3 sm:px-6 pb-3">
         <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-2 py-2">
           <input
             value={manualText}
