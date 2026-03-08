@@ -35,14 +35,110 @@ export type Database = {
         }
         Relationships: []
       }
-      tasks: {
+      pre_instructions: {
+        Row: {
+          content: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      recurring_schedules: {
+        Row: {
+          created_at: string
+          frequency: string
+          id: string
+          is_active: boolean
+          last_run: string | null
+          next_run: string | null
+          schedule_days: string[] | null
+          schedule_time: string
+          template_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_run?: string | null
+          next_run?: string | null
+          schedule_days?: string[] | null
+          schedule_time?: string
+          template_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_run?: string | null
+          next_run?: string | null
+          schedule_days?: string[] | null
+          schedule_time?: string
+          template_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_schedules_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "task_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_activity: {
+        Row: {
+          action: string
+          created_at: string
+          details: string
+          id: string
+          task_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: string
+          id?: string
+          task_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: string
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_activity_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_templates: {
         Row: {
           assignee_id: string | null
           created_at: string
           description: string
           id: string
           priority: string
-          status: string
           title: string
         }
         Insert: {
@@ -51,7 +147,6 @@ export type Database = {
           description?: string
           id?: string
           priority?: string
-          status?: string
           title: string
         }
         Update: {
@@ -60,10 +155,53 @@ export type Database = {
           description?: string
           id?: string
           priority?: string
-          status?: string
           title?: string
         }
         Relationships: []
+      }
+      tasks: {
+        Row: {
+          assignee_id: string | null
+          created_at: string
+          description: string
+          id: string
+          priority: string
+          scheduled_for: string | null
+          status: string
+          template_id: string | null
+          title: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          priority?: string
+          scheduled_for?: string | null
+          status?: string
+          template_id?: string | null
+          title: string
+        }
+        Update: {
+          assignee_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          priority?: string
+          scheduled_for?: string | null
+          status?: string
+          template_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "task_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
