@@ -13,7 +13,8 @@ serve(async (req) => {
 
   try {
     const { text, voice } = await req.json();
-    const apiKey = Deno.env.get("GOOGLE_TTS_API_KEY");
+    const rawApiKey = Deno.env.get("GOOGLE_TTS_API_KEY");
+    const apiKey = rawApiKey?.trim().replace(/^["']|["']$/g, "");
 
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "API key not configured" }), {
