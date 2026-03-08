@@ -1,5 +1,6 @@
-import { motion } from "framer-motion";
-import { ArrowUpRight, Clock, User2, MoreHorizontal } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { Clock, User2, MoreHorizontal, CheckCircle2, Loader2, AlertOctagon, Timer } from "lucide-react";
 
 type TaskStatus = "in-progress" | "pending" | "done" | "blocked";
 
@@ -12,7 +13,7 @@ interface Task {
   eta?: string;
 }
 
-const tasks: Task[] = [
+const initialTasks: Task[] = [
   { id: "1", title: "Q1 Revenue Report — Final Review", status: "in-progress", priority: "high", assignee: "Sarah", eta: "2h" },
   { id: "2", title: "Website Redesign — Brand Guidelines", status: "blocked", priority: "high", assignee: "Marketing", eta: "24h" },
   { id: "3", title: "Client Onboarding Flow v2", status: "in-progress", priority: "medium", assignee: "Jarvis", eta: "4h" },
@@ -22,68 +23,132 @@ const tasks: Task[] = [
   { id: "7", title: "Security Audit — API Endpoints", status: "in-progress", priority: "high", assignee: "SecBot" },
 ];
 
-const statusConfig: Record<TaskStatus, { label: string; className: string }> = {
-  "in-progress": { label: "Active", className: "bg-primary/15 text-primary border-primary/30" },
-  pending: { label: "Pending", className: "bg-warning/15 text-warning border-warning/30" },
-  done: { label: "Done", className: "bg-success/15 text-success border-success/30" },
-  blocked: { label: "Blocked", className: "bg-destructive/15 text-destructive border-destructive/30" },
+const statusConfig: Record<TaskStatus, { label: string; icon: typeof CheckCircle2; className: string; dotClass: string }> = {
+  "in-progress": {
+    label: "Active",
+    icon: Loader2,
+    className: "bg-primary/12 text-primary border-primary/25",
+    dotClass: "animate-pulse-glow",
+  },
+  pending: {
+    label: "Pending",
+    icon: Timer,
+    className: "bg-warning/12 text-warning border-warning/25",
+    dotClass: "",
+  },
+  done: {
+    label: "Done",
+    icon: CheckCircle2,
+    className: "bg-success/12 text-success border-success/25",
+    dotClass: "",
+  },
+  blocked: {
+    label: "Blocked",
+    icon: AlertOctagon,
+    className: "bg-destructive/12 text-destructive border-destructive/25",
+    dotClass: "",
+  },
 };
 
-const priorityDot: Record<string, string> = {
-  high: "bg-destructive",
-  medium: "bg-warning",
-  low: "bg-muted-foreground",
+const priorityConfig: Record<string, { color: string; label: string }> = {
+  high: { color: "bg-destructive", label: "High" },
+  medium: { color: "bg-warning", label: "Med" },
+  low: { color: "bg-muted-foreground", label: "Low" },
 };
 
 export function TaskQueue() {
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between">
-        <h2 className="font-mono text-xs uppercase tracking-widest text-primary">
-          Task Queue
-        </h2>
-        <span className="font-mono text-xs text-muted-foreground">{tasks.length} tasks</span>
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-border/40">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-mono text-xs uppercase tracking-[0.2em] text-primary font-semibold">
+              Task Queue
+            </h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {tasks.filter(t => t.status !== "done").length} active · {tasks.length} total
+            </p>
+          </div>
+          <div className="flex gap-1">
+            {(["in-progress", "pending", "blocked", "done"] as TaskStatus[]).map((s) => {
+              const count = tasks.filter(t => t.status === s).length;
+              const sc = statusConfig[s];
+              return (
+                <span key={s} className={`text-[9px] font-mono px-2 py-0.5 rounded-lg border ${sc.className}`}>
+                  {count}
+                </span>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {tasks.map((task, i) => {
-          const sc = statusConfig[task.status];
-          return (
-            <motion.div
-              key={task.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="glass-panel rounded-lg p-3 hover:border-primary/30 transition-all cursor-pointer group"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className={`h-2 w-2 rounded-full shrink-0 ${priorityDot[task.priority]}`} />
-                  <span className="text-sm font-medium truncate text-foreground">{task.title}</span>
-                </div>
-                <button className="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                </button>
-              </div>
+      {/* Task List - Drag to reorder */}
+      <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
+        <Reorder.Group axis="y" values={tasks} onReorder={setTasks} className="space-y-2.5">
+          <AnimatePresence>
+            {tasks.map((task, i) => {
+              const sc = statusConfig[task.status];
+              const pc = priorityConfig[task.priority];
+              const StatusIcon = sc.icon;
+              const isActive = task.status === "in-progress";
 
-              <div className="flex items-center gap-3 mt-2 ml-4">
-                <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${sc.className}`}>
-                  {sc.label}
-                </span>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <User2 className="h-3 w-3" />
-                  <span className="text-[11px] font-mono">{task.assignee}</span>
-                </div>
-                {task.eta && (
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    <span className="text-[11px] font-mono">{task.eta}</span>
+              return (
+                <Reorder.Item
+                  key={task.id}
+                  value={task}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ delay: i * 0.04, duration: 0.25 }}
+                  className={`glass-panel-elevated rounded-xl p-4 cursor-grab active:cursor-grabbing card-hover group ${
+                    isActive ? "animate-pulse-glow" : ""
+                  }`}
+                  whileDrag={{ scale: 1.03, boxShadow: "0 12px 40px -8px hsl(185 90% 48% / 0.2)" }}
+                >
+                  {/* Top row */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className={`h-2.5 w-2.5 rounded-full shrink-0 mt-1.5 ${pc.color} ${sc.dotClass}`} />
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium text-foreground leading-snug block">
+                          {task.title}
+                        </span>
+                      </div>
+                    </div>
+                    <button className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 p-1 hover:bg-secondary rounded-lg">
+                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                    </button>
                   </div>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
+
+                  {/* Bottom row */}
+                  <div className="flex items-center gap-2.5 mt-3 ml-5.5">
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-2.5 py-1 rounded-lg border ${sc.className}`}>
+                      <StatusIcon className={`h-3 w-3 ${isActive ? "animate-spin" : ""}`} />
+                      {sc.label}
+                    </span>
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <User2 className="h-3 w-3" />
+                      <span className="text-[11px] font-mono">{task.assignee}</span>
+                    </div>
+                    {task.eta && (
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span className="text-[11px] font-mono">{task.eta}</span>
+                      </div>
+                    )}
+                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border border-border/40 text-muted-foreground ml-auto`}>
+                      {pc.label}
+                    </span>
+                  </div>
+                </Reorder.Item>
+              );
+            })}
+          </AnimatePresence>
+        </Reorder.Group>
       </div>
     </div>
   );

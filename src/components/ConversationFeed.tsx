@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { Send, Bot, User } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { Send, Bot, User, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { VoiceOrb } from "./VoiceOrb";
 
@@ -43,6 +43,14 @@ const initialMessages: Message[] = [
 export function ConversationFeed() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const feedRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (feedRef.current) {
+      feedRef.current.scrollTop = feedRef.current.scrollHeight;
+    }
+  }, [messages, isTyping]);
 
   const doSend = useCallback((text: string) => {
     if (!text.trim()) return;
@@ -54,8 +62,10 @@ export function ConversationFeed() {
     };
     setMessages((prev) => [...prev, newMsg]);
     setInput("");
+    setIsTyping(true);
 
     setTimeout(() => {
+      setIsTyping(false);
       setMessages((prev) => [
         ...prev,
         {
@@ -66,7 +76,7 @@ export function ConversationFeed() {
           reasoning: "Parsing intent → matching to available actions → executing pipeline.",
         },
       ]);
-    }, 1200);
+    }, 1500);
   }, []);
 
   const sendMessage = () => doSend(input);
@@ -74,73 +84,117 @@ export function ConversationFeed() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-border/50">
-        <h2 className="font-mono text-xs uppercase tracking-widest text-primary">
-          Live Feed
-        </h2>
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-border/40">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-mono text-xs uppercase tracking-[0.2em] text-primary font-semibold">
+              Live Feed
+            </h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {messages.length} messages
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
+            <span className="text-[10px] font-mono text-success/80">CONNECTED</span>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+      {/* Messages */}
+      <div ref={feedRef} className="flex-1 overflow-y-auto px-6 py-5 space-y-5 scrollbar-thin">
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
             <motion.div
               key={msg.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, x: msg.sender === "matthew" ? 20 : -20, y: 8 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
               className={`flex gap-3 ${msg.sender === "matthew" ? "flex-row-reverse" : ""}`}
             >
+              {/* Avatar */}
               <div
-                className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${
+                className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 ${
                   msg.sender === "jarvis"
-                    ? "bg-primary/20 border border-primary/30"
-                    : "bg-secondary border border-border"
+                    ? "bg-primary/15 border border-primary/25 glow-primary"
+                    : "bg-secondary border border-border/60"
                 }`}
               >
                 {msg.sender === "jarvis" ? (
-                  <Bot className="h-3.5 w-3.5 text-primary" />
+                  <Bot className="h-4 w-4 text-primary" />
                 ) : (
-                  <User className="h-3.5 w-3.5 text-foreground" />
+                  <User className="h-4 w-4 text-foreground/80" />
                 )}
               </div>
 
-              <div className={`max-w-[85%] space-y-1 ${msg.sender === "matthew" ? "items-end" : ""}`}>
+              {/* Content */}
+              <div className={`max-w-[80%] space-y-1.5 ${msg.sender === "matthew" ? "items-end" : ""}`}>
                 <div
-                  className={`rounded-lg px-3 py-2 text-sm ${
+                  className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.sender === "jarvis"
-                      ? "glass-panel"
-                      : "bg-primary/10 border border-primary/20"
+                      ? "glass-panel-elevated rounded-tl-md"
+                      : "bg-primary/12 border border-primary/20 rounded-tr-md"
                   }`}
                 >
                   {msg.text}
                 </div>
                 {msg.reasoning && (
-                  <div className="text-[11px] text-muted-foreground font-mono px-3 py-1 bg-muted/30 rounded border border-border/30">
-                    <span className="text-primary/60">⚡</span> {msg.reasoning}
-                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    transition={{ delay: 0.15, duration: 0.2 }}
+                    className="text-[11px] text-muted-foreground font-mono px-4 py-2 bg-muted/40 rounded-xl border border-border/30"
+                  >
+                    <span className="text-primary/60 mr-1">⚡</span>
+                    {msg.reasoning}
+                  </motion.div>
                 )}
-                <span className="text-[10px] text-muted-foreground font-mono px-1">
+                <span className="text-[10px] text-muted-foreground/70 font-mono px-2 block">
                   {msg.timestamp}
                 </span>
               </div>
             </motion.div>
           ))}
         </AnimatePresence>
+
+        {/* Typing indicator */}
+        <AnimatePresence>
+          {isTyping && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              className="flex gap-3 items-center"
+            >
+              <div className="h-8 w-8 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center">
+                <Bot className="h-4 w-4 text-primary" />
+              </div>
+              <div className="glass-panel-elevated rounded-2xl rounded-tl-md px-4 py-3 flex items-center gap-2">
+                <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
+                <span className="text-xs text-muted-foreground font-mono">Processing...</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      <div className="p-3 border-t border-border/50">
-        <div className="flex items-end gap-2">
+      {/* Command Input Footer */}
+      <div className="px-5 py-4 border-t border-border/40 bg-card/40 backdrop-blur-sm">
+        <div className="flex items-end gap-3">
           <VoiceOrb onTranscript={handleVoiceTranscript} />
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            placeholder="Command Jarvis..."
-            className="flex-1 bg-secondary/50 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 font-mono"
-          />
+          <div className="flex-1 relative">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              placeholder="Command Jarvis..."
+              className="w-full bg-secondary/60 border border-border/50 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15 font-mono transition-all duration-200"
+            />
+          </div>
           <button
             onClick={sendMessage}
-            className="h-9 w-9 rounded-lg bg-primary/20 hover:bg-primary/30 flex items-center justify-center transition-colors border border-primary/30"
+            className="h-11 w-11 rounded-xl bg-primary/20 hover:bg-primary/30 flex items-center justify-center transition-all duration-200 border border-primary/30 hover:glow-primary active:scale-95"
           >
             <Send className="h-4 w-4 text-primary" />
           </button>
