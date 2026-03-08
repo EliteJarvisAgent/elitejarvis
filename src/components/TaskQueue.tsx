@@ -27,7 +27,7 @@ function mapPriority(p: string): "high" | "medium" | "low" {
   return "low";
 }
 
-const statusConfig: Record<TaskStatus, { label: string; icon: typeof CheckCircle2; className: string; dotClass: string }> = {
+const statusConfig: Record<DisplayStatus, { label: string; icon: typeof CheckCircle2; className: string; dotClass: string }> = {
   "in-progress": {
     label: "Active",
     icon: Loader2,
