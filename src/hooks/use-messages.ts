@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { backendClient as supabase } from "@/lib/backend-client";
+import { api } from "@/lib/backend-client";
 
 interface Message {
   id: string;
@@ -19,19 +19,13 @@ export function useMessages() {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data, error } = await supabase
-          .from("messages")
-          .select("*")
-          .order("timestamp", { ascending: true });
-
-        if (error) throw error;
-
-        if (data) {
+        const data = await api.fetchMessages();
+        if (Array.isArray(data)) {
           const msgs: Message[] = data.map((m: any) => ({
-            id: m.id,
+            id: String(m.id),
             sender: m.sender as "matthew" | "jarvis",
             text: m.text,
-            timestamp: new Date(m.timestamp).toLocaleTimeString([], {
+            timestamp: new Date(m.timestamp || m.created_at).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
             }),
@@ -50,44 +44,7 @@ export function useMessages() {
         setIsLoading(false);
       }
     };
-
     load();
-  }, []);
-
-  // Realtime subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel("messages-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const m = payload.new as any;
-          const msg: Message = {
-            id: m.id,
-            sender: m.sender,
-            text: m.text,
-            timestamp: new Date(m.timestamp).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          };
-          setMessages((prev) => {
-            if (prev.some((p) => p.id === msg.id)) return prev;
-            return [...prev, msg];
-          });
-          setChatHistory((prev) => [
-            ...prev,
-            {
-              role: m.sender === "matthew" ? "user" as const : "assistant" as const,
-              content: m.text,
-            },
-          ]);
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const addMessage = useCallback(
@@ -103,20 +60,13 @@ export function useMessages() {
       };
 
       try {
-        const { data, error } = await supabase
-          .from("messages")
-          .insert({ sender, text })
-          .select()
-          .single();
-
-        if (error) throw error;
-
+        const data = await api.createMessage({ sender, text });
         if (data) {
           const msg: Message = {
-            id: data.id,
+            id: String(data.id),
             sender: data.sender as "matthew" | "jarvis",
             text: data.text,
-            timestamp: new Date(data.timestamp).toLocaleTimeString([], {
+            timestamp: new Date(data.timestamp || data.created_at).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
             }),

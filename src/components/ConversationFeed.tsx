@@ -5,24 +5,15 @@ import { useMessages } from "@/hooks/use-messages";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
-const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "blpkggmfpxrjvcoclssq";
-const CLOUD_BASE_URL = `https://${PROJECT_ID}.supabase.co`;
-const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { api, API_BASE_URL } from "@/lib/backend-client";
 
 async function askJarvis(history: ChatMsg[]): Promise<string> {
-  const response = await fetch(`${CLOUD_BASE_URL}/functions/v1/jarvis-chat`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: CLOUD_KEY,
-      Authorization: `Bearer ${CLOUD_KEY}`,
-    },
-    body: JSON.stringify({ messages: history }),
-  });
-
-  if (!response.ok) throw new Error(`Jarvis chat failed: ${response.status}`);
-  const data = await response.json();
-  return data.reply || "Apologies sir, I'm having difficulty processing that.";
+  try {
+    const data = await api.askJarvis(history);
+    return data.reply || "Apologies sir, I'm having difficulty processing that.";
+  } catch {
+    return "Apologies sir, I'm having difficulty processing that.";
+  }
 }
 
 async function speakWithTTS(
@@ -32,13 +23,9 @@ async function speakWithTTS(
   audioRef: React.MutableRefObject<HTMLAudioElement | null>
 ): Promise<void> {
   try {
-    const response = await fetch(`${CLOUD_BASE_URL}/functions/v1/google-tts`, {
+    const response = await fetch(`${API_BASE_URL}/api/google-tts`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: CLOUD_KEY,
-        Authorization: `Bearer ${CLOUD_KEY}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
     });
 

@@ -1,6 +1,6 @@
-// Supabase Cloud backend integration
+// Custom backend integration
 import { useState, useEffect, useCallback } from "react";
-import { backendClient as supabase } from "@/lib/backend-client";
+import { api } from "@/lib/backend-client";
 import type { Task, TaskStatus, TaskPriority } from "@/data/tasks";
 
 export function useTasks() {
@@ -10,111 +10,82 @@ export function useTasks() {
   // Load tasks on mount
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from("tasks")
-        .select("*")
-        .order("created_at", { ascending: true });
-
-      if (data) {
-        setTasks(
-          data.map((t: any) => ({
-            id: t.id,
-            title: t.title,
-            description: t.description,
-            status: t.status as TaskStatus,
-            priority: t.priority as TaskPriority,
-            assigneeId: t.assignee_id,
-            createdAt: t.created_at?.split("T")[0] ?? "",
-          }))
-        );
+      try {
+        const data = await api.fetchTasks();
+        if (Array.isArray(data)) {
+          setTasks(
+            data.map((t: any) => ({
+              id: String(t.id),
+              title: t.title,
+              description: t.description || "",
+              status: (t.status || "backlog") as TaskStatus,
+              priority: (t.priority || "medium") as TaskPriority,
+              assigneeId: t.assignee_id || t.assigned_agent || null,
+              createdAt: t.created_at?.split("T")[0] ?? "",
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn("Tasks load failed:", err);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     load();
   }, []);
 
-  // Realtime subscription
+  // Poll for updates every 5s
   useEffect(() => {
-    const channel = supabase
-      .channel("tasks-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "tasks" },
-        (payload) => {
-          if (payload.eventType === "INSERT") {
-            const t = payload.new as any;
-            setTasks((prev) => {
-              if (prev.some((p) => p.id === t.id)) return prev;
-              return [
-                ...prev,
-                {
-                  id: t.id,
-                  title: t.title,
-                  description: t.description,
-                  status: t.status,
-                  priority: t.priority,
-                  assigneeId: t.assignee_id,
-                  createdAt: t.created_at?.split("T")[0] ?? "",
-                },
-              ];
-            });
-          } else if (payload.eventType === "UPDATE") {
-            const t = payload.new as any;
-            setTasks((prev) =>
-              prev.map((p) =>
-                p.id === t.id
-                  ? {
-                      ...p,
-                      title: t.title,
-                      description: t.description,
-                      status: t.status,
-                      priority: t.priority,
-                      assigneeId: t.assignee_id,
-                    }
-                  : p
-              )
-            );
-          } else if (payload.eventType === "DELETE") {
-            const t = payload.old as any;
-            setTasks((prev) => prev.filter((p) => p.id !== t.id));
-          }
+    const interval = setInterval(async () => {
+      try {
+        const data = await api.fetchTasks();
+        if (Array.isArray(data)) {
+          setTasks(
+            data.map((t: any) => ({
+              id: String(t.id),
+              title: t.title,
+              description: t.description || "",
+              status: (t.status || "backlog") as TaskStatus,
+              priority: (t.priority || "medium") as TaskPriority,
+              assigneeId: t.assignee_id || t.assigned_agent || null,
+              createdAt: t.created_at?.split("T")[0] ?? "",
+            }))
+          );
         }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
+      } catch {
+        // silent retry
+      }
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const addTask = useCallback(
     async (task: Omit<Task, "id" | "createdAt">) => {
-      const { data } = await supabase
-        .from("tasks")
-        .insert({
+      try {
+        const data = await api.createTask({
           title: task.title,
           description: task.description,
           status: task.status,
           priority: task.priority,
           assignee_id: task.assigneeId,
-        })
-        .select()
-        .single();
-
-      if (data) {
-        setTasks((prev) => {
-          if (prev.some((p) => p.id === data.id)) return prev;
-          return [
-            ...prev,
-            {
-              id: data.id,
-              title: data.title,
-              description: data.description,
-              status: data.status as TaskStatus,
-              priority: data.priority as TaskPriority,
-              assigneeId: data.assignee_id,
-              createdAt: data.created_at?.split("T")[0] ?? "",
-            },
-          ];
         });
+        if (data) {
+          const newTask: Task = {
+            id: String(data.id),
+            title: data.title,
+            description: data.description || "",
+            status: data.status as TaskStatus,
+            priority: data.priority as TaskPriority,
+            assigneeId: data.assignee_id || data.assigned_agent || null,
+            createdAt: data.created_at?.split("T")[0] ?? "",
+          };
+          setTasks((prev) => {
+            if (prev.some((p) => p.id === newTask.id)) return prev;
+            return [...prev, newTask];
+          });
+        }
+      } catch (err) {
+        console.warn("Add task failed:", err);
       }
     },
     []
@@ -132,7 +103,11 @@ export function useTasks() {
       // Optimistic update
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
 
-      await supabase.from("tasks").update(dbUpdates).eq("id", id);
+      try {
+        await api.updateTask(id, dbUpdates);
+      } catch (err) {
+        console.warn("Update task failed:", err);
+      }
     },
     []
   );
@@ -140,7 +115,11 @@ export function useTasks() {
   const deleteTask = useCallback(
     async (id: string) => {
       setTasks((prev) => prev.filter((t) => t.id !== id));
-      await supabase.from("tasks").delete().eq("id", id);
+      try {
+        await api.deleteTask(id);
+      } catch (err) {
+        console.warn("Delete task failed:", err);
+      }
     },
     []
   );
