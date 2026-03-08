@@ -5,10 +5,9 @@ import { useMessages } from "@/hooks/use-messages";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
-import { supabase } from "@/integrations/supabase/client";
-
-const CLOUD_BASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "blpkggmfpxrjvcoclssq";
+const CLOUD_BASE_URL = `https://${PROJECT_ID}.supabase.co`;
+const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 async function askJarvis(history: ChatMsg[]): Promise<string> {
   const response = await fetch(`${CLOUD_BASE_URL}/functions/v1/jarvis-chat`, {
@@ -91,6 +90,18 @@ export function ConversationFeed() {
     setIsProcessing(false);
   }, []);
 
+  const primeAudioPlayback = useCallback(() => {
+    const probe = new Audio();
+    probe.muted = true;
+    const maybePromise = probe.play();
+    if (maybePromise?.catch) {
+      maybePromise.catch(() => undefined).finally(() => {
+        probe.pause();
+        probe.muted = false;
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
   }, [messages]);
@@ -169,7 +180,7 @@ export function ConversationFeed() {
       </div>
 
       <div className="flex-1 flex items-center justify-center w-full px-4">
-        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} onInterrupt={handleInterrupt} />
+        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} onInterrupt={handleInterrupt} onUserInteraction={primeAudioPlayback} />
       </div>
     </div>
   );

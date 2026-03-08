@@ -12,12 +12,22 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceId } = await req.json();
+    const rawBody = await req.text();
+    const parsedBody = rawBody ? JSON.parse(rawBody) : {};
+    const text = typeof parsedBody.text === "string" ? parsedBody.text : "";
+    const voiceId = typeof parsedBody.voiceId === "string" ? parsedBody.voiceId : undefined;
     const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
 
     if (!ELEVENLABS_API_KEY) {
       return new Response(JSON.stringify({ error: "ElevenLabs API key not configured" }), {
         status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!text.trim()) {
+      return new Response(JSON.stringify({ error: "Missing text" }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
