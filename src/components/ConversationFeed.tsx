@@ -25,14 +25,14 @@ async function askJarvis(history: ChatMsg[]): Promise<string> {
   return data.reply || "Apologies sir, I'm having difficulty processing that.";
 }
 
-async function speakWithElevenLabs(
+async function speakWithTTS(
   text: string,
   onStart: () => void,
   onEnd: () => void,
   audioRef: React.MutableRefObject<HTMLAudioElement | null>
 ): Promise<void> {
   try {
-    const response = await fetch(`${CLOUD_BASE_URL}/functions/v1/elevenlabs-tts`, {
+    const response = await fetch(`${CLOUD_BASE_URL}/functions/v1/google-tts`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -44,8 +44,10 @@ async function speakWithElevenLabs(
 
     if (!response.ok) throw new Error(`TTS failed: ${response.status}`);
 
-    const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
+    const data = await response.json();
+    if (!data.audioContent) throw new Error("No audio content returned");
+
+    const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
     const audio = audioRef.current ?? new Audio();
     audioRef.current = audio;
 
@@ -54,14 +56,8 @@ async function speakWithElevenLabs(
     audio.preload = "auto";
 
     audio.onplay = onStart;
-    audio.onended = () => {
-      URL.revokeObjectURL(audioUrl);
-      onEnd();
-    };
-    audio.onerror = () => {
-      URL.revokeObjectURL(audioUrl);
-      onEnd();
-    };
+    audio.onended = onEnd;
+    audio.onerror = () => onEnd();
 
     await audio.play();
   } catch (err) {
