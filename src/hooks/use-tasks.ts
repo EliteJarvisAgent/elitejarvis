@@ -1,3 +1,4 @@
+// Supabase Cloud backend integration
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Task, TaskStatus, TaskPriority } from "@/data/tasks";
