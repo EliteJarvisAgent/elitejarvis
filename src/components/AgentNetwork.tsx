@@ -17,7 +17,6 @@ const initialAgents: SubAgent[] = [
   { id: "devops", name: "DevOps", label: "O", status: "idle" },
 ];
 
-// Position agents in an arc above the central orb
 function getAgentPosition(index: number, total: number, radius: number) {
   const startAngle = Math.PI * 1.15;
   const endAngle = Math.PI * 1.85;
@@ -39,25 +38,19 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
   const [agents, setAgents] = useState<SubAgent[]>(initialAgents);
   const [activeConnections, setActiveConnections] = useState<string[]>([]);
 
-  // Simulate agent activation when Jarvis is speaking
   useEffect(() => {
     if (!isSpeaking) {
-      // After speaking ends, mark active ones as done briefly then idle
       const timer = setTimeout(() => {
         setActiveConnections([]);
-        setAgents((prev) =>
-          prev.map((a) => ({ ...a, status: "idle" as const }))
-        );
+        setAgents((prev) => prev.map((a) => ({ ...a, status: "idle" as const })));
       }, 600);
       return () => clearTimeout(timer);
     }
 
-    // Randomly activate 1-3 agents when speaking
     const activate = () => {
       const count = 1 + Math.floor(Math.random() * 2);
       const shuffled = [...initialAgents].sort(() => Math.random() - 0.5);
       const selected = shuffled.slice(0, count).map((a) => a.id);
-
       setActiveConnections(selected);
       setAgents((prev) =>
         prev.map((a) => ({
@@ -74,12 +67,15 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
 
   const centerX = 0;
   const centerY = 0;
+  // Responsive radius and sizes
   const radius = 180;
+  const smallRadius = 110;
   const nodeSize = 48;
+  const smallNodeSize = 36;
   const agentOrbCenterYOffset = 30;
 
   return (
-    <div className="relative flex items-center justify-center" style={{ width: 420, height: 380 }}>
+    <div className="relative flex items-center justify-center w-full max-w-[420px] mx-auto aspect-[420/380] sm:w-[420px] sm:h-[380px] sm:aspect-auto">
       {/* SVG connection lines */}
       <svg
         className="absolute inset-0 pointer-events-none"
@@ -91,42 +87,25 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
           const isConnected = activeConnections.includes(agent.id);
           return (
             <g key={agent.id}>
-              {/* Connection line */}
               <motion.line
                 x1={centerX}
                 y1={centerY}
                 x2={pos.x}
                 y2={pos.y - agentOrbCenterYOffset}
-                stroke={
-                  isConnected
-                    ? "hsl(185, 90%, 48%)"
-                    : "hsl(222, 18%, 16%)"
-                }
+                stroke={isConnected ? "hsl(185, 90%, 48%)" : "hsl(222, 18%, 16%)"}
                 strokeWidth={isConnected ? 2 : 1}
                 strokeDasharray={isConnected ? "none" : "4 4"}
                 initial={{ opacity: 0 }}
-                animate={{
-                  opacity: isConnected ? 0.8 : 0.2,
-                  strokeWidth: isConnected ? 2 : 1,
-                }}
+                animate={{ opacity: isConnected ? 0.8 : 0.2, strokeWidth: isConnected ? 2 : 1 }}
                 transition={{ duration: 0.4 }}
               />
-              {/* Traveling pulse along line when connected */}
               {isConnected && (
                 <motion.circle
                   r={3}
                   fill="hsl(185, 90%, 60%)"
                   initial={{ cx: centerX, cy: centerY, opacity: 0 }}
-                  animate={{
-                    cx: [centerX, pos.x],
-                    cy: [centerY, pos.y - agentOrbCenterYOffset],
-                    opacity: [0, 1, 1, 0],
-                  }}
-                  transition={{
-                    duration: 1.2,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
+                  animate={{ cx: [centerX, pos.x], cy: [centerY, pos.y - agentOrbCenterYOffset], opacity: [0, 1, 1, 0] }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
                 />
               )}
             </g>
@@ -134,28 +113,30 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
         })}
       </svg>
 
-      {/* Sub-agent nodes */}
+      {/* Sub-agent nodes - use percentage positioning for responsiveness */}
       {agents.map((agent, i) => {
         const pos = getAgentPosition(i, agents.length, radius);
         const isActive = agent.status === "active";
         const isDone = agent.status === "done";
+        // Convert to percentage of viewBox
+        const pctX = ((pos.x + 210) / 420) * 100;
+        const pctY = ((pos.y - agentOrbCenterYOffset + 220) / 400) * 100;
 
         return (
           <motion.div
             key={agent.id}
-            className="absolute flex flex-col items-center gap-1.5"
+            className="absolute flex flex-col items-center gap-1"
             style={{
-              left: `calc(50% + ${pos.x}px - ${nodeSize / 2}px)`,
-              top: `calc(50% + ${pos.y}px - ${nodeSize / 2}px - 30px)`,
+              left: `${pctX}%`,
+              top: `${pctY}%`,
+              transform: "translate(-50%, -50%)",
             }}
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.1, duration: 0.4 }}
           >
-            {/* Node orb */}
             <motion.div
-              className="rounded-full flex items-center justify-center font-mono-display text-xs font-semibold relative"
-              style={{ width: nodeSize, height: nodeSize }}
+              className="rounded-full flex items-center justify-center font-mono-display text-[10px] sm:text-xs font-semibold relative h-9 w-9 sm:h-12 sm:w-12"
               animate={{
                 background: isActive
                   ? "radial-gradient(circle at 40% 35%, hsl(185, 90%, 55%), hsl(185, 90%, 30%))"
@@ -171,17 +152,9 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
               }}
               transition={{ duration: 0.3 }}
             >
-              <span
-                className={
-                  isActive || isDone
-                    ? "text-primary-foreground"
-                    : "text-muted-foreground"
-                }
-              >
+              <span className={isActive || isDone ? "text-primary-foreground" : "text-muted-foreground"}>
                 {agent.label}
               </span>
-
-              {/* Active ring */}
               <AnimatePresence>
                 {isActive && (
                   <motion.div
@@ -195,15 +168,10 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
               </AnimatePresence>
             </motion.div>
 
-            {/* Agent name */}
             <motion.span
-              className="text-[10px] font-mono-display tracking-wider whitespace-nowrap"
+              className="text-[8px] sm:text-[10px] font-mono-display tracking-wider whitespace-nowrap"
               animate={{
-                color: isActive
-                  ? "hsl(185, 90%, 60%)"
-                  : isDone
-                  ? "hsl(160, 70%, 55%)"
-                  : "hsl(220, 15%, 40%)",
+                color: isActive ? "hsl(185, 90%, 60%)" : isDone ? "hsl(160, 70%, 55%)" : "hsl(220, 15%, 40%)",
               }}
               transition={{ duration: 0.3 }}
             >
@@ -214,9 +182,9 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
       })}
 
       {/* Central Jarvis label */}
-      <div className="absolute" style={{ top: "calc(50% + 90px)", left: "50%", transform: "translateX(-50%)" }}>
+      <div className="absolute" style={{ top: "calc(50% + 70px)", left: "50%", transform: "translateX(-50%)" }}>
         <motion.span
-          className="text-[11px] font-mono-display uppercase tracking-[0.3em] text-primary/70"
+          className="text-[10px] sm:text-[11px] font-mono-display uppercase tracking-[0.3em] text-primary/70"
           animate={{ opacity: isSpeaking ? [0.5, 1, 0.5] : 0.7 }}
           transition={isSpeaking ? { duration: 1.5, repeat: Infinity } : {}}
         >
@@ -224,8 +192,8 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
         </motion.span>
       </div>
 
-      {/* Central Jarvis orb */}
-      <div className="absolute" style={{ top: "calc(50% - 80px)", left: "calc(50% - 80px)" }}>
+      {/* Central Jarvis orb - responsive sizing */}
+      <div className="absolute" style={{ top: "50%", left: "50%", transform: "translate(-50%, -60%)" }}>
         <VoiceOrb onTranscript={onTranscript} isSpeaking={isSpeaking} onInterrupt={onInterrupt} />
       </div>
     </div>
