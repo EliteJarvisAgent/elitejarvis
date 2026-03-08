@@ -14,7 +14,7 @@ export function DashboardLayout() {
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
           </header>
           <motion.main
-            className="flex-1 overflow-auto"
+            className="flex-1 overflow-hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
