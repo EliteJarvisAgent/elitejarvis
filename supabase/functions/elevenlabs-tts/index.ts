@@ -22,8 +22,8 @@ serve(async (req) => {
       });
     }
 
-    // Daniel voice — deep, refined British male. Perfect Jarvis.
-    const selectedVoice = voiceId || "onwK4e9ZLuTAKqWW03F9";
+    // George voice — refined, calm British male. Closest to Jarvis.
+    const selectedVoice = voiceId || "JBFqnCBsd6RMkjVDRZzb";
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice}?output_format=mp3_44100_128`,
@@ -35,13 +35,13 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           text,
-          model_id: "eleven_turbo_v2_5",
+          model_id: "eleven_multilingual_v2",
           voice_settings: {
-            stability: 0.6,
-            similarity_boost: 0.8,
-            style: 0.3,
+            stability: 0.85,
+            similarity_boost: 0.9,
+            style: 0.15,
             use_speaker_boost: true,
-            speed: 1.0,
+            speed: 0.95,
           },
         }),
       }
