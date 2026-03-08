@@ -31,9 +31,10 @@ function getAgentPosition(index: number, total: number, radius: number) {
 interface AgentNetworkProps {
   onTranscript: (text: string) => void;
   isSpeaking: boolean;
+  isProcessing?: boolean;
 }
 
-export function AgentNetwork({ onTranscript, isSpeaking }: AgentNetworkProps) {
+export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false }: AgentNetworkProps) {
   const [agents, setAgents] = useState<SubAgent[]>(initialAgents);
   const [activeConnections, setActiveConnections] = useState<string[]>([]);
 
