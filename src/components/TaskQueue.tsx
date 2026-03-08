@@ -94,7 +94,7 @@ export function TaskQueue() {
             </p>
           </div>
           <div className="flex gap-1">
-            {(["in-progress", "pending", "blocked", "done"] as TaskStatus[]).map((s) => {
+            {(["in-progress", "pending", "blocked", "done"] as DisplayStatus[]).map((s) => {
               const count = tasks.filter(t => t.status === s).length;
               const sc = statusConfig[s];
               return (
