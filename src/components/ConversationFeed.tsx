@@ -83,15 +83,16 @@ async function speakWithElevenLabs(
       utter.pitch = 0.85;
       utter.volume = 1;
       const voices = window.speechSynthesis.getVoices();
+      // Strongly prefer male voices for Jarvis feel
       const preferred = voices.find(
-        (v) => v.lang.startsWith("en-GB") && v.name.toLowerCase().includes("male")
+        (v) => v.lang.startsWith("en-GB") && /male|daniel|george|james/i.test(v.name)
       ) || voices.find(
-        (v) => v.lang.startsWith("en-GB")
+        (v) => v.lang.startsWith("en") && /male|daniel|george|james|david|mark|alex/i.test(v.name)
       ) || voices.find(
-        (v) => v.lang.startsWith("en") && v.name.toLowerCase().includes("daniel")
+        (v) => v.lang.startsWith("en-GB") && !/female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa/i.test(v.name)
       ) || voices.find(
-        (v) => v.lang.startsWith("en")
-      );
+        (v) => v.lang.startsWith("en") && !/female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa/i.test(v.name)
+      ) || voices[0];
       if (preferred) utter.voice = preferred;
       onStart();
       utter.onend = onEnd;
