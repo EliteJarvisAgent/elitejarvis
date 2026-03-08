@@ -72,9 +72,10 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false }:
   }, [isSpeaking]);
 
   const centerX = 0;
-  const centerY = -20;
+  const centerY = 0;
   const radius = 180;
   const nodeSize = 48;
+  const agentOrbCenterYOffset = 30;
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: 420, height: 380 }}>
