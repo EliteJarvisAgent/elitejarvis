@@ -72,7 +72,7 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false }:
   }, [isSpeaking]);
 
   const centerX = 0;
-  const centerY = 0;
+  const centerY = -20;
   const radius = 180;
   const nodeSize = 48;
 
