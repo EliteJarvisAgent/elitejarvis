@@ -85,13 +85,29 @@ export function VoiceOrb({
     }
   }, [onVoiceUnavailable]);
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
     if (isSpeaking && onInterrupt) onInterrupt();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
       onVoiceUnavailable?.("Voice recognition isn't supported on this browser.");
+      onListeningChange?.(false);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      streamRef.current = stream;
+      startAnalyserFromStream(stream);
+    } catch {
+      onVoiceUnavailable?.("Microphone permission denied.");
       onListeningChange?.(false);
       return;
     }
@@ -152,7 +168,6 @@ export function VoiceOrb({
     recognitionRef.current = recognition;
     setIsListening(true);
     onListeningChange?.(true);
-    startAnalyser();
   }, [
     emitTranscript,
     isSpeaking,
@@ -160,7 +175,7 @@ export function VoiceOrb({
     onListeningChange,
     onTranscriptPreview,
     onVoiceUnavailable,
-    startAnalyser,
+    startAnalyserFromStream,
     stopAnalyser,
   ]);
 
