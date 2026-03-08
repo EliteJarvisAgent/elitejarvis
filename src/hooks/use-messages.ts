@@ -66,7 +66,7 @@ export function useMessages() {
             id: String(data.id),
             sender: data.sender as "matthew" | "jarvis",
             text: data.text,
-            timestamp: new Date(data.timestamp || data.created_at).toLocaleTimeString([], {
+            timestamp: new Date(data.timestamp).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
             }),
