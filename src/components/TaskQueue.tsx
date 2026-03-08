@@ -61,9 +61,24 @@ const priorityConfig: Record<string, { color: string; label: string }> = {
 };
 
 export function TaskQueue() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const { tasks: rawTasks } = useTasks();
+  
+  const displayTasks = useMemo<DisplayTask[]>(() => 
+    rawTasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      status: mapStatus(t.status),
+      priority: mapPriority(t.priority),
+      assignee: t.assigneeId ? (agents.find(a => a.id === t.assigneeId)?.name ?? "Unassigned") : "Unassigned",
+    })),
+    [rawTasks]
+  );
 
-  return (
+  const [tasks, setTasks] = useState<DisplayTask[]>([]);
+  
+  useEffect(() => {
+    setTasks(displayTasks);
+  }, [displayTasks]);
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-5 py-4 border-b border-border/40">
