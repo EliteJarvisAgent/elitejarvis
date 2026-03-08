@@ -19,10 +19,7 @@ async function askJarvis(history: ChatMsg[]): Promise<string> {
     }
   );
 
-  if (!response.ok) {
-    throw new Error(`Jarvis chat failed: ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`Jarvis chat failed: ${response.status}`);
   const data = await response.json();
   return data.reply || "Apologies sir, I'm having difficulty processing that.";
 }
@@ -48,7 +45,6 @@ async function speakWithElevenLabs(
     );
 
     if (!response.ok) throw new Error(`TTS failed: ${response.status}`);
-
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(audioUrl);
@@ -103,22 +99,14 @@ export function ConversationFeed() {
   const doSend = useCallback(async (text: string) => {
     if (!text.trim()) return;
     handleInterrupt();
-
-    // Save user message to DB
     await addMessage("matthew", text);
     setIsProcessing(true);
 
-    const newHistory: { role: "user" | "assistant"; content: string }[] = [
-      ...chatHistory,
-      { role: "user", content: text },
-    ];
+    const newHistory: ChatMsg[] = [...chatHistory, { role: "user", content: text }];
 
     try {
       const reply = await askJarvis(newHistory);
-
-      // Save Jarvis reply to DB
       await addMessage("jarvis", reply);
-
       speakWithElevenLabs(
         reply,
         () => { setIsProcessing(false); setIsSpeaking(true); },
@@ -128,8 +116,7 @@ export function ConversationFeed() {
     } catch (err) {
       console.error("Jarvis error:", err);
       setIsProcessing(false);
-      const fallback = "Apologies sir, I'm experiencing a temporary disruption. Please try again.";
-      await addMessage("jarvis", fallback);
+      await addMessage("jarvis", "Apologies sir, I'm experiencing a temporary disruption. Please try again.");
     }
   }, [chatHistory, handleInterrupt, addMessage]);
 
@@ -137,7 +124,7 @@ export function ConversationFeed() {
     <div className="flex flex-col h-full items-center">
       <div
         ref={feedRef}
-        className="w-full overflow-y-auto px-6 pt-4 pb-2 scrollbar-thin"
+        className="w-full overflow-y-auto px-3 sm:px-6 pt-4 pb-2 scrollbar-thin"
         style={{ maxHeight: "30%" }}
       >
         <AnimatePresence initial={false}>
@@ -150,7 +137,7 @@ export function ConversationFeed() {
               className={`flex gap-2 mb-2 ${msg.sender === "matthew" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${
+                className={`max-w-[90%] sm:max-w-[85%] rounded-2xl px-3 sm:px-4 py-2 text-sm ${
                   msg.sender === "jarvis"
                     ? "glass-panel-elevated rounded-tl-md text-foreground"
                     : "bg-primary/12 border border-primary/20 rounded-tr-md text-foreground"
@@ -166,7 +153,7 @@ export function ConversationFeed() {
         </AnimatePresence>
       </div>
 
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center w-full px-4">
         <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} onInterrupt={handleInterrupt} />
       </div>
     </div>

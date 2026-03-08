@@ -28,6 +28,8 @@ export default function TasksPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newPriority, setNewPriority] = useState<TaskPriority>("medium");
+  // Mobile: selected column filter
+  const [mobileCol, setMobileCol] = useState<TaskStatus | null>(null);
 
   const getColumnTasks = (status: TaskStatus) => tasks.filter((t) => t.status === status);
 
@@ -65,27 +67,30 @@ export default function TasksPage() {
 
   const getAgentById = (id: string | null) => id ? agents.find((a) => a.id === id) : null;
 
+  // Mobile: which columns to show
+  const visibleColumns = mobileCol ? statusColumns.filter(c => c.id === mobileCol) : statusColumns;
+
   return (
-    <div className="p-6 lg:p-8 h-full flex flex-col max-w-[1600px] mx-auto">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 sm:p-6 lg:p-8 h-full flex flex-col max-w-[1600px] mx-auto">
+      <div className="flex items-center justify-between mb-4 sm:mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-foreground tracking-tight">Task Board</h1>
+          <h1 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">Task Board</h1>
           <p className="text-muted-foreground text-xs mt-1 font-mono-display">
             {isLoading ? "Loading..." : `${tasks.length} tasks · ${tasks.filter((t) => t.status === "done").length} completed`}
           </p>
         </div>
         <button
           onClick={() => setShowNewTask(!showNewTask)}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+          className="flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-3.5 w-3.5" />
-          New Task
+          <span className="hidden sm:inline">New Task</span>
         </button>
       </div>
 
       <AnimatePresence>
         {showNewTask && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-6">
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-4 sm:mb-6">
             <div className="glass-panel rounded-xl p-4 space-y-3 border border-border/60">
               <input placeholder="Task title..." value={newTitle} onChange={(e) => setNewTitle(e.target.value)} autoFocus className="w-full bg-secondary/40 border border-border/40 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all" />
               <textarea placeholder="Description..." value={newDesc} onChange={(e) => setNewDesc(e.target.value)} rows={2} className="w-full bg-secondary/40 border border-border/40 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 resize-none transition-all" />
@@ -105,14 +110,47 @@ export default function TasksPage() {
         )}
       </AnimatePresence>
 
-      <div className="flex-1 grid grid-cols-5 gap-3 min-h-0 overflow-x-auto pb-2">
+      {/* Mobile column filter tabs */}
+      <div className="flex md:hidden gap-1.5 mb-3 overflow-x-auto pb-1 scrollbar-thin">
+        <button
+          onClick={() => setMobileCol(null)}
+          className={`shrink-0 text-[10px] font-mono-display uppercase tracking-wider px-3 py-1.5 rounded-lg border transition-colors ${
+            !mobileCol ? "bg-primary/15 text-primary border-primary/30" : "text-muted-foreground border-border/40"
+          }`}
+        >
+          All ({tasks.length})
+        </button>
         {statusColumns.map((col) => {
+          const count = getColumnTasks(col.id).length;
+          const accent = columnAccent[col.id];
+          return (
+            <button
+              key={col.id}
+              onClick={() => setMobileCol(col.id)}
+              className={`shrink-0 flex items-center gap-1.5 text-[10px] font-mono-display uppercase tracking-wider px-3 py-1.5 rounded-lg border transition-colors ${
+                mobileCol === col.id ? "bg-primary/15 text-primary border-primary/30" : "text-muted-foreground border-border/40"
+              }`}
+            >
+              <div className={`h-1.5 w-1.5 rounded-full ${accent.dot}`} />
+              {col.label} ({count})
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Board */}
+      <div className={`flex-1 min-h-0 overflow-x-auto pb-2 ${
+        mobileCol
+          ? "flex flex-col"
+          : "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3"
+      }`}>
+        {visibleColumns.map((col) => {
           const colTasks = getColumnTasks(col.id);
           const accent = columnAccent[col.id];
           const isOver = dragOverCol === col.id;
 
           return (
-            <div key={col.id} className="flex flex-col min-w-[200px]" onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.id); }} onDragLeave={() => setDragOverCol(null)} onDrop={() => handleDrop(col.id)}>
+            <div key={col.id} className="flex flex-col min-w-0 md:min-w-[200px]" onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.id); }} onDragLeave={() => setDragOverCol(null)} onDrop={() => handleDrop(col.id)}>
               <div className={`flex items-center gap-2 px-3 py-2 mb-2 border-b-2 ${accent.header}`}>
                 <div className={`h-2 w-2 rounded-full ${accent.dot}`} />
                 <span className="text-[11px] font-mono-display uppercase tracking-widest text-foreground/80 flex-1">{col.label}</span>
@@ -135,6 +173,16 @@ export default function TasksPage() {
                         {task.description && <p className="text-[11px] text-muted-foreground/70 line-clamp-2 mt-1.5 ml-5 leading-relaxed">{task.description}</p>}
                         <div className="flex items-center justify-between mt-3 ml-5">
                           <span className={`inline-flex items-center gap-1 text-[9px] font-mono-display uppercase px-1.5 py-0.5 rounded border ${priority.style}`}>{priority.icon}{task.priority}</span>
+
+                          {/* Mobile: status change select */}
+                          <select
+                            value={task.status}
+                            onChange={(e) => updateTask(task.id, { status: e.target.value as TaskStatus })}
+                            className="md:hidden bg-secondary/40 border border-border/40 rounded px-1.5 py-0.5 text-[9px] text-muted-foreground focus:outline-none"
+                          >
+                            {statusColumns.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                          </select>
+
                           <div className="relative">
                             {assignee ? (
                               <div className="flex items-center gap-1">
