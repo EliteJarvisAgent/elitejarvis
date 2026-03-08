@@ -44,10 +44,10 @@ serve(async (req) => {
     );
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error("Google TTS error:", error);
-      return new Response(JSON.stringify({ error: "TTS request failed" }), {
-        status: response.status,
+      const errorText = await response.text();
+      console.error("Google TTS error:", response.status, errorText);
+      return new Response(JSON.stringify({ error: "TTS request failed", details: errorText, status: response.status }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
