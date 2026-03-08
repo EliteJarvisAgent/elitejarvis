@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Send, Bot, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { VoiceOrb } from "./VoiceOrb";
 
 interface Message {
   id: string;
@@ -43,18 +44,17 @@ export function ConversationFeed() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
+  const doSend = useCallback((text: string) => {
+    if (!text.trim()) return;
     const newMsg: Message = {
       id: Date.now().toString(),
       sender: "matthew",
-      text: input,
+      text,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
     setMessages((prev) => [...prev, newMsg]);
     setInput("");
 
-    // Simulate Jarvis response
     setTimeout(() => {
       setMessages((prev) => [
         ...prev,
@@ -67,7 +67,10 @@ export function ConversationFeed() {
         },
       ]);
     }, 1200);
-  };
+  }, []);
+
+  const sendMessage = () => doSend(input);
+  const handleVoiceTranscript = useCallback((text: string) => doSend(text), [doSend]);
 
   return (
     <div className="flex flex-col h-full">
@@ -126,7 +129,8 @@ export function ConversationFeed() {
       </div>
 
       <div className="p-3 border-t border-border/50">
-        <div className="flex gap-2">
+        <div className="flex items-end gap-2">
+          <VoiceOrb onTranscript={handleVoiceTranscript} />
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
