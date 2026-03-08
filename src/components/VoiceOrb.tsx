@@ -7,6 +7,8 @@ interface VoiceOrbProps {
   onInterrupt?: () => void;
   onUserInteraction?: () => void;
   onVoiceUnavailable?: (reason: string) => void;
+  onTranscriptPreview?: (text: string) => void;
+  onListeningChange?: (isListening: boolean) => void;
 }
 
 export function VoiceOrb({
@@ -15,6 +17,8 @@ export function VoiceOrb({
   onInterrupt,
   onUserInteraction,
   onVoiceUnavailable,
+  onTranscriptPreview,
+  onListeningChange,
 }: VoiceOrbProps) {
   const [isListening, setIsListening] = useState(false);
   const [volume, setVolume] = useState(0);
@@ -80,7 +84,7 @@ export function VoiceOrb({
       tick();
     } catch {
       onVoiceUnavailable?.("Microphone permission denied.");
-    }
+      onListeningChange?.(false);
   }, [onVoiceUnavailable]);
 
   const startListening = useCallback(() => {
@@ -95,6 +99,7 @@ export function VoiceOrb({
 
     pendingTranscriptRef.current = "";
     emittedThisSessionRef.current = false;
+    onTranscriptPreview?.("");
 
     const recognition = new SR();
     recognition.continuous = false;
@@ -119,11 +124,14 @@ export function VoiceOrb({
       pendingTranscriptRef.current = finalChunk || interimChunk || pendingTranscriptRef.current;
 
       if (finalChunk) emitTranscript(finalChunk);
-    };
+      onTranscriptPreview?.(pendingTranscriptRef.current);
 
-    recognition.onerror = () => {
-      onVoiceUnavailable?.("Voice recognition failed. Please try again.");
+    recognition.onerror = (event: Event) => {
+      const errorEvent = event as Event & { error?: string };
+      const reason = errorEvent.error ? `Voice recognition failed (${errorEvent.error}).` : "Voice recognition failed. Please try again.";
+      onVoiceUnavailable?.(reason);
       setIsListening(false);
+      onListeningChange?.(false);
       stopAnalyser();
     };
 
@@ -131,21 +139,26 @@ export function VoiceOrb({
       if (!emittedThisSessionRef.current && pendingTranscriptRef.current.trim()) {
         emitTranscript(pendingTranscriptRef.current);
       }
+      onTranscriptPreview?.("");
       pendingTranscriptRef.current = "";
       setIsListening(false);
+      onListeningChange?.(false);
       stopAnalyser();
     };
 
     recognition.start();
     recognitionRef.current = recognition;
     setIsListening(true);
+    onListeningChange?.(true);
     startAnalyser();
-  }, [emitTranscript, isSpeaking, onInterrupt, onVoiceUnavailable, startAnalyser, stopAnalyser]);
+  }, [emitTranscript, isSpeaking, onInterrupt, onVoiceUnavailable, onTranscriptPreview, onListeningChange, startAnalyser, stopAnalyser]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     setIsListening(false);
+    onListeningChange?.(false);
+    onTranscriptPreview?.("");
     stopAnalyser();
   }, [stopAnalyser]);
 
