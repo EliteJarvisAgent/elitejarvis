@@ -47,13 +47,29 @@ async function speakWithElevenLabs(
     };
     await audio.play();
   } catch (err) {
-    console.error("ElevenLabs TTS error, falling back to browser TTS:", err);
+    console.warn("ElevenLabs TTS unavailable, using browser TTS:", err);
     if ("speechSynthesis" in window) {
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
-      utter.rate = 1;
-      utter.pitch = 0.9;
+      utter.rate = 0.95;
+      utter.pitch = 0.85;
+      utter.volume = 1;
+      // Try to pick a British English male voice for Jarvis feel
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(
+        (v) => v.lang.startsWith("en-GB") && v.name.toLowerCase().includes("male")
+      ) || voices.find(
+        (v) => v.lang.startsWith("en-GB")
+      ) || voices.find(
+        (v) => v.lang.startsWith("en") && v.name.toLowerCase().includes("daniel")
+      ) || voices.find(
+        (v) => v.lang.startsWith("en")
+      );
+      if (preferred) utter.voice = preferred;
       onStart();
       utter.onend = onEnd;
+      utter.onerror = () => onEnd();
       window.speechSynthesis.speak(utter);
     } else {
       onStart();
