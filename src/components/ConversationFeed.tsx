@@ -5,7 +5,7 @@ import { useMessages } from "@/hooks/use-messages";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
-import { api, API_BASE_URL } from "@/lib/backend-client";
+import { api } from "@/lib/backend-client";
 
 async function askJarvis(history: ChatMsg[]): Promise<string> {
   try {
@@ -23,18 +23,10 @@ async function speakWithTTS(
   audioRef: React.MutableRefObject<HTMLAudioElement | null>
 ): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/google-tts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
+    const ttsData = await api.googleTTS(text);
+    if (!ttsData.audioContent) throw new Error("No audio content returned");
 
-    if (!response.ok) throw new Error(`TTS failed: ${response.status}`);
-
-    const data = await response.json();
-    if (!data.audioContent) throw new Error("No audio content returned");
-
-    const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+    const audioUrl = `data:audio/mpeg;base64,${ttsData.audioContent}`;
     const audio = audioRef.current ?? new Audio();
     audioRef.current = audio;
 

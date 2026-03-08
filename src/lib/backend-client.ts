@@ -1,67 +1,43 @@
-// Custom backend API client
-const API_BASE = "http://159.65.165.3:3001";
+// API client — routes through edge function proxy to avoid mixed content (HTTPS→HTTP)
+const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "blpkggmfpxrjvcoclssq";
+const PROXY_URL = `https://${PROJECT_ID}.supabase.co/functions/v1/api-proxy`;
+const API_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+async function proxy(endpoint: string, method = "GET", body?: unknown) {
+  const res = await fetch(PROXY_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: API_KEY,
+      Authorization: `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify({ endpoint, method, body }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Proxy error (${res.status}): ${err}`);
+  }
+  return res.json();
+}
 
 export const api = {
-  async fetchTasks() {
-    const res = await fetch(`${API_BASE}/api/tasks`);
-    if (!res.ok) throw new Error(`Failed to fetch tasks: ${res.status}`);
-    return res.json();
-  },
+  fetchTasks: () => proxy("/api/tasks"),
+  createTask: (task: { title: string; description: string; status: string; priority: string; assignee_id: string | null }) =>
+    proxy("/api/tasks", "POST", task),
+  updateTask: (id: string, updates: Record<string, unknown>) =>
+    proxy(`/api/tasks/${id}`, "PATCH", updates),
+  deleteTask: (id: string) =>
+    proxy(`/api/tasks/${id}`, "DELETE"),
 
-  async createTask(task: { title: string; description: string; status: string; priority: string; assignee_id: string | null }) {
-    const res = await fetch(`${API_BASE}/api/tasks`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(task),
-    });
-    if (!res.ok) throw new Error(`Failed to create task: ${res.status}`);
-    return res.json();
-  },
+  fetchMessages: () => proxy("/api/messages"),
+  createMessage: (msg: { sender: string; text: string }) =>
+    proxy("/api/messages", "POST", msg),
 
-  async updateTask(id: string, updates: Record<string, unknown>) {
-    const res = await fetch(`${API_BASE}/api/tasks/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    });
-    if (!res.ok) throw new Error(`Failed to update task: ${res.status}`);
-    return res.json();
-  },
+  askJarvis: (messages: { role: string; content: string }[]) =>
+    proxy("/api/jarvis-chat", "POST", { messages }),
 
-  async deleteTask(id: string) {
-    const res = await fetch(`${API_BASE}/api/tasks/${id}`, {
-      method: "DELETE",
-    });
-    if (!res.ok) throw new Error(`Failed to delete task: ${res.status}`);
-    return res.json();
-  },
-
-  async fetchMessages() {
-    const res = await fetch(`${API_BASE}/api/messages`);
-    if (!res.ok) throw new Error(`Failed to fetch messages: ${res.status}`);
-    return res.json();
-  },
-
-  async createMessage(msg: { sender: string; text: string }) {
-    const res = await fetch(`${API_BASE}/api/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(msg),
-    });
-    if (!res.ok) throw new Error(`Failed to create message: ${res.status}`);
-    return res.json();
-  },
-
-  // For jarvis-chat edge function equivalent
-  async askJarvis(messages: { role: string; content: string }[]) {
-    const res = await fetch(`${API_BASE}/api/jarvis-chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages }),
-    });
-    if (!res.ok) throw new Error(`Jarvis chat failed: ${res.status}`);
-    return res.json();
-  },
+  googleTTS: (text: string) =>
+    proxy("/api/google-tts", "POST", { text }),
 };
 
-export const API_BASE_URL = API_BASE;
+export const API_BASE_URL = PROXY_URL;
