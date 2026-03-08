@@ -22,7 +22,7 @@ const Index = () => {
         {/* Mobile Task Toggle */}
         <button
           onClick={() => setShowTasks(!showTasks)}
-          className="lg:hidden fixed bottom-4 right-4 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg"
+          className="lg:hidden fixed bottom-20 right-4 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg"
           style={{ boxShadow: "0 0 20px hsl(185 90% 48% / 0.3)" }}
         >
           <ListTodo className="h-5 w-5" />
