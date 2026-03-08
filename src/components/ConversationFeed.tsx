@@ -31,7 +31,13 @@ async function speakWithTTS(
   audioRef: React.MutableRefObject<HTMLAudioElement | null>
 ): Promise<void> {
   try {
-    const ttsData = await api.googleTTS(text);
+    const ttsRes = await fetch(`${CLOUD_URL}/functions/v1/google-tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: CLOUD_KEY, Authorization: `Bearer ${CLOUD_KEY}` },
+      body: JSON.stringify({ text }),
+    });
+    if (!ttsRes.ok) throw new Error(`TTS failed: ${ttsRes.status}`);
+    const ttsData = await ttsRes.json();
     if (!ttsData.audioContent) throw new Error("No audio content returned");
 
     const audioUrl = `data:audio/mpeg;base64,${ttsData.audioContent}`;
