@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Bot } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { VoiceOrb } from "./VoiceOrb";
+import { AgentNetwork } from "./AgentNetwork";
 
 interface Message {
   id: string;
@@ -44,7 +43,6 @@ export function ConversationFeed() {
         },
       ]);
 
-      // Speak via browser TTS
       if ("speechSynthesis" in window) {
         const utter = new SpeechSynthesisUtterance(response);
         utter.rate = 1;
@@ -59,41 +57,30 @@ export function ConversationFeed() {
 
   return (
     <div className="flex flex-col h-full items-center">
-      {/* Scrollable transcript log */}
-      <div ref={feedRef} className="w-full flex-1 overflow-y-auto px-6 pt-6 pb-2 scrollbar-thin">
+      {/* Transcript log */}
+      <div
+        ref={feedRef}
+        className="w-full overflow-y-auto px-6 pt-4 pb-2 scrollbar-thin"
+        style={{ maxHeight: "30%" }}
+      >
         <AnimatePresence initial={false}>
-          {messages.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center h-full text-center gap-3 py-12"
-            >
-              <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <Bot className="h-6 w-6 text-primary/50" />
-              </div>
-              <p className="text-muted-foreground/60 text-sm font-mono max-w-[240px]">
-                Tap the orb below and speak a command to Jarvis
-              </p>
-            </motion.div>
-          )}
-
           {messages.map((msg) => (
             <motion.div
               key={msg.id}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
-              className={`flex gap-2 mb-3 ${msg.sender === "matthew" ? "justify-end" : "justify-start"}`}
+              className={`flex gap-2 mb-2 ${msg.sender === "matthew" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+                className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${
                   msg.sender === "jarvis"
                     ? "glass-panel-elevated rounded-tl-md text-foreground"
                     : "bg-primary/12 border border-primary/20 rounded-tr-md text-foreground"
                 }`}
               >
                 <p className="leading-relaxed">{msg.text}</p>
-                <span className="text-[9px] text-muted-foreground/50 font-mono mt-1 block text-right">
+                <span className="text-[9px] text-muted-foreground/50 font-mono-display mt-1 block text-right">
                   {msg.timestamp}
                 </span>
               </div>
@@ -102,9 +89,9 @@ export function ConversationFeed() {
         </AnimatePresence>
       </div>
 
-      {/* Voice Orb - centered at bottom */}
-      <div className="py-8 flex flex-col items-center">
-        <VoiceOrb onTranscript={doSend} isSpeaking={isSpeaking} />
+      {/* Agent Network with central orb */}
+      <div className="flex-1 flex items-center justify-center">
+        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} />
       </div>
     </div>
   );
