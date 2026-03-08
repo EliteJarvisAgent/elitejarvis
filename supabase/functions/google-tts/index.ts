@@ -30,8 +30,8 @@ serve(async (req) => {
         body: JSON.stringify({
           input: { text },
           voice: {
-            languageCode: voice?.languageCode || "en-US",
-            name: voice?.name || "en-US-Neural2-D",
+            languageCode: voice?.languageCode || "en-GB",
+            name: voice?.name || "en-GB-Neural2-B",
             ssmlGender: voice?.ssmlGender || "MALE",
           },
           audioConfig: {
