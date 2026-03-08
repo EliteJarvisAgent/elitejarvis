@@ -10,7 +10,8 @@ export function VoiceOrb({ onTranscript }: VoiceOrbProps) {
   const [isListening, setIsListening] = useState(false);
   const [volume, setVolume] = useState(0);
   const [interim, setInterim] = useState("");
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
@@ -48,7 +49,8 @@ export function VoiceOrb({ onTranscript }: VoiceOrbProps) {
   }, []);
 
   const startListening = useCallback(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
 
     const recognition = new SR();
