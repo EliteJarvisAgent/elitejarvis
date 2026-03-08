@@ -1,29 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { Clock, User2, MoreHorizontal, CheckCircle2, Loader2, AlertOctagon, Timer } from "lucide-react";
+import { useTasks } from "@/hooks/use-tasks";
+import { agents } from "@/data/agents";
 
-type TaskStatus = "in-progress" | "pending" | "done" | "blocked";
+type DisplayStatus = "in-progress" | "pending" | "done" | "blocked";
 
-interface Task {
+interface DisplayTask {
   id: string;
   title: string;
-  status: TaskStatus;
+  status: DisplayStatus;
   priority: "high" | "medium" | "low";
   assignee: string;
-  eta?: string;
 }
 
-const initialTasks: Task[] = [
-  { id: "1", title: "Q1 Revenue Report — Final Review", status: "in-progress", priority: "high", assignee: "Sarah", eta: "2h" },
-  { id: "2", title: "Website Redesign — Brand Guidelines", status: "blocked", priority: "high", assignee: "Marketing", eta: "24h" },
-  { id: "3", title: "Client Onboarding Flow v2", status: "in-progress", priority: "medium", assignee: "Jarvis", eta: "4h" },
-  { id: "4", title: "Deploy Staging Environment", status: "pending", priority: "medium", assignee: "DevOps Agent" },
-  { id: "5", title: "Weekly Team Sync Notes", status: "done", priority: "low", assignee: "Jarvis" },
-  { id: "6", title: "Update CRM Pipeline Stages", status: "pending", priority: "low", assignee: "Unassigned" },
-  { id: "7", title: "Security Audit — API Endpoints", status: "in-progress", priority: "high", assignee: "SecBot" },
-];
+function mapStatus(s: string): DisplayStatus {
+  if (s === "in-progress") return "in-progress";
+  if (s === "done") return "done";
+  if (s === "review") return "blocked";
+  return "pending"; // backlog, todo
+}
 
-const statusConfig: Record<TaskStatus, { label: string; icon: typeof CheckCircle2; className: string; dotClass: string }> = {
+function mapPriority(p: string): "high" | "medium" | "low" {
+  if (p === "critical" || p === "high") return "high";
+  if (p === "medium") return "medium";
+  return "low";
+}
+
+const statusConfig: Record<DisplayStatus, { label: string; icon: typeof CheckCircle2; className: string; dotClass: string }> = {
   "in-progress": {
     label: "Active",
     icon: Loader2,
@@ -57,7 +61,24 @@ const priorityConfig: Record<string, { color: string; label: string }> = {
 };
 
 export function TaskQueue() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const { tasks: rawTasks } = useTasks();
+  
+  const displayTasks = useMemo<DisplayTask[]>(() => 
+    rawTasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      status: mapStatus(t.status),
+      priority: mapPriority(t.priority),
+      assignee: t.assigneeId ? (agents.find(a => a.id === t.assigneeId)?.name ?? "Unassigned") : "Unassigned",
+    })),
+    [rawTasks]
+  );
+
+  const [tasks, setTasks] = useState<DisplayTask[]>([]);
+  
+  useEffect(() => {
+    setTasks(displayTasks);
+  }, [displayTasks]);
 
   return (
     <div className="flex flex-col h-full">
@@ -73,7 +94,7 @@ export function TaskQueue() {
             </p>
           </div>
           <div className="flex gap-1">
-            {(["in-progress", "pending", "blocked", "done"] as TaskStatus[]).map((s) => {
+            {(["in-progress", "pending", "blocked", "done"] as DisplayStatus[]).map((s) => {
               const count = tasks.filter(t => t.status === s).length;
               const sc = statusConfig[s];
               return (
@@ -134,12 +155,6 @@ export function TaskQueue() {
                       <User2 className="h-3 w-3" />
                       <span className="text-[11px] font-mono">{task.assignee}</span>
                     </div>
-                    {task.eta && (
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        <span className="text-[11px] font-mono">{task.eta}</span>
-                      </div>
-                    )}
                     <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border border-border/40 text-muted-foreground ml-auto`}>
                       {pc.label}
                     </span>
