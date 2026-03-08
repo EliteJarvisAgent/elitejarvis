@@ -5,9 +5,10 @@ interface VoiceOrbProps {
   onTranscript: (text: string) => void;
   isSpeaking?: boolean;
   onInterrupt?: () => void;
+  onUserInteraction?: () => void;
 }
 
-export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt }: VoiceOrbProps) {
+export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt, onUserInteraction }: VoiceOrbProps) {
   const [isListening, setIsListening] = useState(false);
   const [volume, setVolume] = useState(0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -15,6 +16,8 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt }: Voic
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
+  const pendingTranscriptRef = useRef("");
+  const emittedThisSessionRef = useRef(false);
 
   const [jarvisVolume, setJarvisVolume] = useState(0);
   useEffect(() => {
@@ -35,6 +38,13 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt }: Voic
     analyserRef.current = null;
     setVolume(0);
   }, []);
+
+  const emitTranscript = useCallback((value: string) => {
+    const cleaned = value.trim();
+    if (!cleaned || emittedThisSessionRef.current) return;
+    emittedThisSessionRef.current = true;
+    onTranscript(cleaned);
+  }, [onTranscript]);
 
   const startAnalyser = useCallback(async () => {
     try {
@@ -61,38 +71,61 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt }: Voic
   }, []);
 
   const startListening = useCallback(() => {
-    // If Jarvis is speaking, interrupt first then start listening
-    if (isSpeaking && onInterrupt) {
-      onInterrupt();
-    }
+    if (isSpeaking && onInterrupt) onInterrupt();
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
 
+    pendingTranscriptRef.current = "";
+    emittedThisSessionRef.current = false;
+
     const recognition = new SR();
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = "en-US";
 
     recognition.onresult = (e: SpeechRecognitionEvent) => {
       let finalText = "";
+      let interimText = "";
+
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalText += t;
+        if (e.results[i].isFinal) {
+          finalText += `${t} `;
+        } else {
+          interimText += `${t} `;
+        }
       }
-      if (finalText) {
-        onTranscript(finalText.trim());
+
+      const finalChunk = finalText.trim();
+      const interimChunk = interimText.trim();
+      pendingTranscriptRef.current = finalChunk || interimChunk || pendingTranscriptRef.current;
+
+      if (finalChunk) {
+        emitTranscript(finalChunk);
       }
     };
 
-    recognition.onerror = () => { setIsListening(false); stopAnalyser(); };
-    recognition.onend = () => { setIsListening(false); stopAnalyser(); };
+    recognition.onerror = () => {
+      setIsListening(false);
+      stopAnalyser();
+    };
+
+    recognition.onend = () => {
+      if (!emittedThisSessionRef.current && pendingTranscriptRef.current.trim()) {
+        emitTranscript(pendingTranscriptRef.current);
+      }
+      pendingTranscriptRef.current = "";
+      setIsListening(false);
+      stopAnalyser();
+    };
 
     recognition.start();
     recognitionRef.current = recognition;
     setIsListening(true);
     startAnalyser();
-  }, [onTranscript, startAnalyser, stopAnalyser, isSpeaking, onInterrupt]);
+  }, [emitTranscript, isSpeaking, onInterrupt, startAnalyser, stopAnalyser]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -100,6 +133,15 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt }: Voic
     setIsListening(false);
     stopAnalyser();
   }, [stopAnalyser]);
+
+  const handleOrbClick = useCallback(() => {
+    onUserInteraction?.();
+    if (isListening) {
+      stopListening();
+      return;
+    }
+    startListening();
+  }, [isListening, onUserInteraction, startListening, stopListening]);
 
   useEffect(() => {
     return () => { recognitionRef.current?.stop(); stopAnalyser(); };
@@ -110,11 +152,10 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt }: Voic
 
   return (
     <button
-      onClick={isListening ? stopListening : startListening}
+      onClick={handleOrbClick}
       className="relative flex items-center justify-center focus:outline-none cursor-pointer"
       style={{ width: orbSize, height: orbSize }}
     >
-      {/* Outer ethereal rings */}
       {Array.from({ length: ringCount }).map((_, i) => (
         <motion.div
           key={i}
@@ -135,7 +176,6 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt }: Voic
         />
       ))}
 
-      {/* Large ambient glow */}
       <motion.div
         className="absolute rounded-full"
         style={{ width: orbSize * 2, height: orbSize * 2 }}
@@ -151,7 +191,6 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt }: Voic
         transition={{ duration: 0.12 }}
       />
 
-      {/* Inner glow halo */}
       <motion.div
         className="absolute rounded-full blur-xl"
         style={{ width: orbSize * 0.9, height: orbSize * 0.9 }}
@@ -166,7 +205,6 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt }: Voic
         transition={{ duration: 0.1 }}
       />
 
-      {/* Core spirit sphere */}
       <motion.div
         className="relative z-10 rounded-full overflow-hidden"
         style={{ width: orbSize * 0.45, height: orbSize * 0.45 }}
@@ -185,7 +223,6 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt }: Voic
         }}
         transition={{ duration: 0.12, ease: "easeOut" }}
       >
-        {/* Inner light refraction */}
         <motion.div
           className="absolute inset-0 rounded-full"
           animate={{

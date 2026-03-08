@@ -33,6 +33,7 @@ interface AgentNetworkProps {
   isProcessing?: boolean;
   onInterrupt?: () => void;
   onUserInteraction?: () => void;
+}
 
 export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, onInterrupt, onUserInteraction }: AgentNetworkProps) {
   const [agents, setAgents] = useState<SubAgent[]>(initialAgents);

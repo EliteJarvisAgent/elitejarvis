@@ -25,6 +25,13 @@ serve(async (req) => {
       });
     }
 
+    if (!text.trim()) {
+      return new Response(JSON.stringify({ error: "Missing text" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // George voice — refined, calm British male. Closest to Jarvis.
     const selectedVoice = voiceId || "JBFqnCBsd6RMkjVDRZzb";
 

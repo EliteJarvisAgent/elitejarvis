@@ -90,6 +90,18 @@ export function ConversationFeed() {
     setIsProcessing(false);
   }, []);
 
+  const primeAudioPlayback = useCallback(() => {
+    const probe = new Audio();
+    probe.muted = true;
+    const maybePromise = probe.play();
+    if (maybePromise?.catch) {
+      maybePromise.catch(() => undefined).finally(() => {
+        probe.pause();
+        probe.muted = false;
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
   }, [messages]);
@@ -168,7 +180,7 @@ export function ConversationFeed() {
       </div>
 
       <div className="flex-1 flex items-center justify-center w-full px-4">
-        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} onInterrupt={handleInterrupt} />
+        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} onInterrupt={handleInterrupt} onUserInteraction={primeAudioPlayback} />
       </div>
     </div>
   );
