@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { db as supabase } from "@/lib/supabase-client";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;

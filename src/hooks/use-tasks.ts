@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { db as supabase } from "@/lib/supabase-client";
+import { supabase } from "@/integrations/supabase/client";
 import type { Task, TaskStatus, TaskPriority } from "@/data/tasks";
 
 export function useTasks() {
