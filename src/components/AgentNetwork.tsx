@@ -57,16 +57,16 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
   // Org-chart positions: Jarvis at center-top, agents spread below
   // 5 agents evenly across the bottom row
   const agentPositions = [
-    { x: 52, y: 290 },   // Research (left-most)
-    { x: 136, y: 290 },  // Security
-    { x: 220, y: 290 },  // DataSync (center)
-    { x: 304, y: 290 },  // Content
-    { x: 388, y: 290 },  // DevOps (right-most)
+    { x: 52, y: 250 },
+    { x: 136, y: 250 },
+    { x: 220, y: 250 },
+    { x: 304, y: 250 },
+    { x: 388, y: 250 },
   ];
 
-  const jarvisCenter = { x: 220, y: 110 };
+  const jarvisCenter = { x: 220, y: 70 };
   const viewW = 440;
-  const viewH = 380;
+  const viewH = 320;
 
   return (
     <div className="relative flex items-center justify-center w-full max-w-[480px] mx-auto" style={{ aspectRatio: `${viewW}/${viewH}` }}>
@@ -90,7 +90,7 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
           const pos = agentPositions[i];
           const isConnected = activeConnections.includes(agent.id);
           // Org-chart style: vertical line down from Jarvis, then horizontal to agent
-          const midY = 210;
+          const midY = 170;
           return (
             <g key={agent.id}>
               {/* Vertical from Jarvis */}
@@ -144,8 +144,8 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
 
         {/* Horizontal bus line */}
         <motion.line
-          x1={agentPositions[0].x} y1={210}
-          x2={agentPositions[4].x} y2={210}
+          x1={agentPositions[0].x} y1={170}
+          x2={agentPositions[4].x} y2={170}
           stroke="hsl(185, 25%, 18%)"
           strokeWidth={0.7}
           opacity={0.2}
