@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from "framer-motion";
 
 interface VoiceOrbProps {
   onTranscript: (text: string) => void;
+  isSpeaking?: boolean;
 }
 
-export function VoiceOrb({ onTranscript }: VoiceOrbProps) {
+export function VoiceOrb({ onTranscript, isSpeaking = false }: VoiceOrbProps) {
   const [isListening, setIsListening] = useState(false);
   const [volume, setVolume] = useState(0);
   const [interim, setInterim] = useState("");
@@ -15,6 +16,19 @@ export function VoiceOrb({ onTranscript }: VoiceOrbProps) {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Simulated jarvis volume for visual effect
+  const [jarvisVolume, setJarvisVolume] = useState(0);
+  useEffect(() => {
+    if (!isSpeaking) { setJarvisVolume(0); return; }
+    const interval = setInterval(() => {
+      setJarvisVolume(0.3 + Math.random() * 0.7);
+    }, 80);
+    return () => clearInterval(interval);
+  }, [isSpeaking]);
+
+  const activeVolume = isListening ? volume : isSpeaking ? jarvisVolume : 0;
+  const isActive = isListening || isSpeaking;
 
   const stopAnalyser = useCallback(() => {
     cancelAnimationFrame(animFrameRef.current);
@@ -49,6 +63,7 @@ export function VoiceOrb({ onTranscript }: VoiceOrbProps) {
   }, []);
 
   const startListening = useCallback(() => {
+    if (isSpeaking) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
@@ -87,7 +102,7 @@ export function VoiceOrb({ onTranscript }: VoiceOrbProps) {
     recognitionRef.current = recognition;
     setIsListening(true);
     startAnalyser();
-  }, [onTranscript, startAnalyser, stopAnalyser]);
+  }, [onTranscript, startAnalyser, stopAnalyser, isSpeaking]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -104,85 +119,137 @@ export function VoiceOrb({ onTranscript }: VoiceOrbProps) {
     };
   }, [stopAnalyser]);
 
-  const ringCount = 3;
+  const ringCount = 4;
+  const orbSize = 160;
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex flex-col items-center gap-6 select-none">
+      {/* Status label */}
+      <AnimatePresence mode="wait">
+        <motion.span
+          key={isListening ? "listening" : isSpeaking ? "speaking" : "idle"}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          className="text-[11px] font-mono uppercase tracking-[0.25em] text-muted-foreground"
+        >
+          {isListening ? "Listening..." : isSpeaking ? "Jarvis speaking..." : "Tap to speak"}
+        </motion.span>
+      </AnimatePresence>
+
+      {/* Interim transcript */}
       <AnimatePresence>
         {isListening && interim && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="text-xs font-mono text-muted-foreground px-3 py-1.5 rounded-lg glass-panel max-w-[200px] text-center truncate"
+            className="text-sm font-mono text-foreground/80 px-5 py-2.5 rounded-2xl glass-panel-elevated max-w-[320px] text-center"
           >
             {interim}
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* Main Orb */}
       <button
         onClick={isListening ? stopListening : startListening}
-        className="relative h-12 w-12 rounded-full flex items-center justify-center focus:outline-none"
+        className="relative flex items-center justify-center focus:outline-none"
+        style={{ width: orbSize, height: orbSize }}
       >
-        {/* Animated rings */}
-        <AnimatePresence>
-          {isListening &&
-            Array.from({ length: ringCount }).map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute inset-0 rounded-full border border-primary/40"
-                initial={{ scale: 1, opacity: 0.6 }}
-                animate={{
-                  scale: 1 + volume * 1.2 + i * 0.3,
-                  opacity: Math.max(0, 0.5 - i * 0.15 - volume * 0.1),
-                }}
-                exit={{ scale: 1, opacity: 0 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-              />
-            ))}
-        </AnimatePresence>
-
-        {/* Core orb */}
-        <motion.div
-          className={`relative z-10 h-10 w-10 rounded-full flex items-center justify-center border transition-colors ${
-            isListening
-              ? "bg-primary/30 border-primary/60 glow-primary"
-              : "bg-primary/10 border-primary/20 hover:bg-primary/20"
-          }`}
-          animate={
-            isListening
-              ? { scale: 1 + volume * 0.2 }
-              : { scale: 1 }
-          }
-          transition={{ duration: 0.1 }}
-        >
-          {isListening ? (
-            <MicOff className="h-4 w-4 text-primary" />
-          ) : (
-            <Mic className="h-4 w-4 text-primary" />
-          )}
-        </motion.div>
-
-        {/* Glow effect */}
-        {isListening && (
+        {/* Outer rings */}
+        {Array.from({ length: ringCount }).map((_, i) => (
           <motion.div
-            className="absolute inset-0 rounded-full bg-primary/10 blur-xl"
-            animate={{ opacity: 0.3 + volume * 0.7, scale: 1.5 + volume }}
-            transition={{ duration: 0.1 }}
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              width: orbSize,
+              height: orbSize,
+              border: `1px solid`,
+              borderColor: isActive
+                ? isListening
+                  ? `hsl(185 90% 48% / ${0.15 - i * 0.03})`
+                  : `hsl(160 70% 45% / ${0.15 - i * 0.03})`
+                : `hsl(222 18% 16% / ${0.3 - i * 0.05})`,
+            }}
+            animate={{
+              scale: isActive ? 1 + activeVolume * 0.6 + i * 0.18 : 1 + i * 0.08,
+              opacity: isActive ? Math.max(0, 0.6 - i * 0.12) : 0.15 - i * 0.03,
+            }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
           />
-        )}
-      </button>
+        ))}
 
-      {isListening && (
-        <motion.span
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-[10px] font-mono text-primary/70 uppercase tracking-widest"
+        {/* Ambient glow */}
+        <motion.div
+          className="absolute rounded-full blur-3xl"
+          style={{ width: orbSize * 1.5, height: orbSize * 1.5 }}
+          animate={{
+            opacity: isActive ? 0.15 + activeVolume * 0.3 : 0.05,
+            scale: isActive ? 1 + activeVolume * 0.3 : 1,
+            background: isListening
+              ? "radial-gradient(circle, hsl(185 90% 48% / 0.4), transparent)"
+              : isSpeaking
+              ? "radial-gradient(circle, hsl(160 70% 45% / 0.4), transparent)"
+              : "radial-gradient(circle, hsl(185 90% 48% / 0.15), transparent)",
+          }}
+          transition={{ duration: 0.1 }}
+        />
+
+        {/* Inner glow ring */}
+        <motion.div
+          className="absolute rounded-full"
+          style={{ width: orbSize * 0.85, height: orbSize * 0.85 }}
+          animate={{
+            boxShadow: isActive
+              ? isListening
+                ? `0 0 ${30 + activeVolume * 40}px ${8 + activeVolume * 15}px hsl(185 90% 48% / ${0.1 + activeVolume * 0.15})`
+                : `0 0 ${30 + activeVolume * 40}px ${8 + activeVolume * 15}px hsl(160 70% 45% / ${0.1 + activeVolume * 0.15})`
+              : "0 0 15px 4px hsl(185 90% 48% / 0.05)",
+          }}
+          transition={{ duration: 0.1 }}
+        />
+
+        {/* Core sphere */}
+        <motion.div
+          className="relative z-10 rounded-full flex items-center justify-center overflow-hidden"
+          style={{
+            width: orbSize * 0.55,
+            height: orbSize * 0.55,
+          }}
+          animate={{
+            scale: isActive ? 1 + activeVolume * 0.15 : 1,
+            background: isListening
+              ? "radial-gradient(circle at 40% 35%, hsl(185 90% 60%), hsl(185 90% 35%))"
+              : isSpeaking
+              ? "radial-gradient(circle at 40% 35%, hsl(160 70% 55%), hsl(160 70% 30%))"
+              : "radial-gradient(circle at 40% 35%, hsl(185 90% 48% / 0.25), hsl(185 90% 48% / 0.08))",
+          }}
+          transition={{ duration: 0.12, ease: "easeOut" }}
         >
-          Listening…
-        </motion.span>
-      )}
+          {/* Inner highlight */}
+          <motion.div
+            className="absolute inset-0 rounded-full"
+            animate={{
+              background: isActive
+                ? "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.2), transparent 60%)"
+                : "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.06), transparent 60%)",
+            }}
+          />
+
+          {/* Icon */}
+          <motion.div
+            animate={{ scale: isActive ? 1 + activeVolume * 0.1 : 1 }}
+            transition={{ duration: 0.1 }}
+          >
+            {isListening ? (
+              <MicOff className="h-7 w-7 text-primary-foreground drop-shadow-lg" />
+            ) : (
+              <Mic className={`h-7 w-7 ${isActive ? "text-accent-foreground" : "text-primary/60"} drop-shadow-lg`} />
+            )}
+          </motion.div>
+        </motion.div>
+      </button>
     </div>
   );
 }
