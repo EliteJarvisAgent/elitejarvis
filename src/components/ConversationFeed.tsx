@@ -36,7 +36,8 @@ async function askJarvis(history: ChatMsg[]): Promise<string> {
 async function speakWithElevenLabs(
   text: string,
   onStart: () => void,
-  onEnd: () => void
+  onEnd: () => void,
+  audioRef?: React.MutableRefObject<HTMLAudioElement | null>
 ): Promise<void> {
   try {
     const response = await fetch(
@@ -59,14 +60,17 @@ async function speakWithElevenLabs(
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(audioUrl);
+    if (audioRef) audioRef.current = audio;
     
     audio.onplay = onStart;
     audio.onended = () => {
       URL.revokeObjectURL(audioUrl);
+      if (audioRef) audioRef.current = null;
       onEnd();
     };
     audio.onerror = () => {
       URL.revokeObjectURL(audioUrl);
+      if (audioRef) audioRef.current = null;
       onEnd();
     };
     await audio.play();
@@ -106,6 +110,21 @@ export function ConversationFeed() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const handleInterrupt = useCallback(() => {
+    // Stop any playing audio
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+    // Stop browser speech synthesis
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+    setIsProcessing(false);
+  }, []);
 
   useEffect(() => {
     if (feedRef.current) {
@@ -144,7 +163,8 @@ export function ConversationFeed() {
       speakWithElevenLabs(
         reply,
         () => { setIsProcessing(false); setIsSpeaking(true); },
-        () => setIsSpeaking(false)
+        () => setIsSpeaking(false),
+        currentAudioRef
       );
     } catch (err) {
       console.error("Jarvis error:", err);
@@ -198,7 +218,7 @@ export function ConversationFeed() {
 
       {/* Agent Network with central orb */}
       <div className="flex-1 flex items-center justify-center">
-        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} />
+        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} onInterrupt={handleInterrupt} />
       </div>
     </div>
   );

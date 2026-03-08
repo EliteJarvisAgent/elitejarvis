@@ -4,9 +4,10 @@ import { motion } from "framer-motion";
 interface VoiceOrbProps {
   onTranscript: (text: string) => void;
   isSpeaking?: boolean;
+  onInterrupt?: () => void;
 }
 
-export function VoiceOrb({ onTranscript, isSpeaking = false }: VoiceOrbProps) {
+export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt }: VoiceOrbProps) {
   const [isListening, setIsListening] = useState(false);
   const [volume, setVolume] = useState(0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,7 +61,10 @@ export function VoiceOrb({ onTranscript, isSpeaking = false }: VoiceOrbProps) {
   }, []);
 
   const startListening = useCallback(() => {
-    if (isSpeaking) return;
+    // If Jarvis is speaking, interrupt first then start listening
+    if (isSpeaking && onInterrupt) {
+      onInterrupt();
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
@@ -88,7 +92,7 @@ export function VoiceOrb({ onTranscript, isSpeaking = false }: VoiceOrbProps) {
     recognitionRef.current = recognition;
     setIsListening(true);
     startAnalyser();
-  }, [onTranscript, startAnalyser, stopAnalyser, isSpeaking]);
+  }, [onTranscript, startAnalyser, stopAnalyser, isSpeaking, onInterrupt]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
