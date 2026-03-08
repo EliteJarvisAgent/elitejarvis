@@ -36,7 +36,8 @@ async function askJarvis(history: ChatMsg[]): Promise<string> {
 async function speakWithElevenLabs(
   text: string,
   onStart: () => void,
-  onEnd: () => void
+  onEnd: () => void,
+  audioRef?: React.MutableRefObject<HTMLAudioElement | null>
 ): Promise<void> {
   try {
     const response = await fetch(
