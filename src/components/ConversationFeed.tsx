@@ -1,12 +1,65 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AgentNetwork } from "./AgentNetwork";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
   sender: "matthew" | "jarvis";
   text: string;
   timestamp: string;
+}
+
+async function speakWithGoogleTTS(
+  text: string,
+  onEnd: () => void
+): Promise<void> {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-tts`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          text,
+          voice: {
+            languageCode: "en-US",
+            name: "en-US-Neural2-D",
+            ssmlGender: "MALE",
+            speakingRate: 1.0,
+            pitch: -2.0,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`TTS failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+    const audio = new Audio(audioUrl);
+    audio.onended = onEnd;
+    audio.onerror = onEnd;
+    await audio.play();
+  } catch (err) {
+    console.error("Google TTS error, falling back to browser TTS:", err);
+    // Fallback to browser TTS
+    if ("speechSynthesis" in window) {
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 1;
+      utter.pitch = 0.9;
+      utter.onend = onEnd;
+      window.speechSynthesis.speak(utter);
+    } else {
+      setTimeout(onEnd, 2000);
+    }
+  }
 }
 
 export function ConversationFeed() {
@@ -43,15 +96,7 @@ export function ConversationFeed() {
         },
       ]);
 
-      if ("speechSynthesis" in window) {
-        const utter = new SpeechSynthesisUtterance(response);
-        utter.rate = 1;
-        utter.pitch = 0.9;
-        utter.onend = () => setIsSpeaking(false);
-        window.speechSynthesis.speak(utter);
-      } else {
-        setTimeout(() => setIsSpeaking(false), 2000);
-      }
+      speakWithGoogleTTS(response, () => setIsSpeaking(false));
     }, 800);
   }, []);
 
