@@ -57,16 +57,16 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
   // Org-chart positions: Jarvis at center-top, agents spread below
   // 5 agents evenly across the bottom row
   const agentPositions = [
-    { x: 52, y: 290 },   // Research (left-most)
-    { x: 136, y: 290 },  // Security
-    { x: 220, y: 290 },  // DataSync (center)
-    { x: 304, y: 290 },  // Content
-    { x: 388, y: 290 },  // DevOps (right-most)
+    { x: 52, y: 250 },
+    { x: 136, y: 250 },
+    { x: 220, y: 250 },
+    { x: 304, y: 250 },
+    { x: 388, y: 250 },
   ];
 
-  const jarvisCenter = { x: 220, y: 110 };
+  const jarvisCenter = { x: 220, y: 70 };
   const viewW = 440;
-  const viewH = 380;
+  const viewH = 320;
 
   return (
     <div className="relative flex items-center justify-center w-full max-w-[480px] mx-auto" style={{ aspectRatio: `${viewW}/${viewH}` }}>
