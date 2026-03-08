@@ -1,52 +1,55 @@
-import { CheckCircle, Clock, AlertTriangle, Mic, Settings, Bell } from "lucide-react";
+import { CheckCircle, Clock, AlertTriangle, Bell, Settings, Activity } from "lucide-react";
 import { motion } from "framer-motion";
 
 const metrics = [
-  { label: "Completed Today", value: "14", icon: CheckCircle, color: "text-success" },
-  { label: "Time Saved", value: "3.2h", icon: Clock, color: "text-primary" },
-  { label: "Pending", value: "7", icon: AlertTriangle, color: "text-warning" },
+  { label: "Completed", value: "14", icon: CheckCircle, color: "text-success", bg: "bg-success/10 border-success/20" },
+  { label: "Time Saved", value: "3.2h", icon: Clock, color: "text-primary", bg: "bg-primary/10 border-primary/20" },
+  { label: "Pending", value: "7", icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10 border-warning/20" },
 ];
 
 export function TopBar() {
   return (
-    <header className="h-16 glass-panel border-b border-border/50 flex items-center justify-between px-6">
-      <div className="flex items-center gap-2">
-        <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center glow-primary">
-          <span className="font-mono text-primary font-bold text-sm">J</span>
+    <header className="h-[72px] bg-card/60 backdrop-blur-xl border-b border-border/40 flex items-center justify-between px-6 lg:px-8">
+      {/* Branding */}
+      <div className="flex items-center gap-3">
+        <div className="h-9 w-9 rounded-xl bg-primary/15 flex items-center justify-center glow-primary border border-primary/25">
+          <Activity className="h-4.5 w-4.5 text-primary" />
         </div>
-        <h1 className="font-mono font-bold text-lg tracking-wider text-primary">
-          JARVIS
-        </h1>
-        <span className="text-muted-foreground text-xs font-mono ml-2 hidden sm:inline">
-          AI MANAGER v2.1
-        </span>
+        <div>
+          <h1 className="font-mono font-bold text-base tracking-wider text-foreground">
+            JARVIS
+          </h1>
+          <span className="text-muted-foreground text-[10px] font-mono tracking-wide">
+            AI COMMAND CENTER
+          </span>
+        </div>
       </div>
 
-      <div className="hidden md:flex items-center gap-6">
-        {metrics.map((m) => (
+      {/* Metric Cards */}
+      <div className="hidden md:flex items-center gap-3">
+        {metrics.map((m, i) => (
           <motion.div
             key={m.label}
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2"
+            transition={{ delay: i * 0.1, duration: 0.3 }}
+            className={`flex items-center gap-2.5 px-4 py-2 rounded-xl border ${m.bg}`}
           >
             <m.icon className={`h-4 w-4 ${m.color}`} />
             <div className="flex flex-col">
-              <span className="font-mono text-sm font-semibold text-foreground">{m.value}</span>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{m.label}</span>
+              <span className="font-mono text-sm font-semibold text-foreground leading-none">{m.value}</span>
+              <span className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">{m.label}</span>
             </div>
           </motion.div>
         ))}
       </div>
 
-      <div className="flex items-center gap-2">
-        <button className="h-9 w-9 rounded-lg bg-primary/10 hover:bg-primary/20 flex items-center justify-center transition-colors border border-primary/20">
-          <Mic className="h-4 w-4 text-primary" />
-        </button>
-        <button className="h-9 w-9 rounded-lg hover:bg-secondary flex items-center justify-center transition-colors">
+      {/* Controls */}
+      <div className="flex items-center gap-1.5">
+        <button className="h-9 w-9 rounded-xl hover:bg-secondary/80 flex items-center justify-center transition-all duration-200 border border-transparent hover:border-border/50">
           <Bell className="h-4 w-4 text-muted-foreground" />
         </button>
-        <button className="h-9 w-9 rounded-lg hover:bg-secondary flex items-center justify-center transition-colors">
+        <button className="h-9 w-9 rounded-xl hover:bg-secondary/80 flex items-center justify-center transition-all duration-200 border border-transparent hover:border-border/50">
           <Settings className="h-4 w-4 text-muted-foreground" />
         </button>
       </div>
