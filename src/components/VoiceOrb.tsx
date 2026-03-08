@@ -190,12 +190,16 @@ export function VoiceOrb({
 
   const handleOrbClick = useCallback(() => {
     onUserInteraction?.();
+    if (isSpeaking && onInterrupt) {
+      onInterrupt();
+      return;
+    }
     if (isListening) {
       stopListening();
       return;
     }
     startListening();
-  }, [isListening, onUserInteraction, startListening, stopListening]);
+  }, [isListening, isSpeaking, onInterrupt, onUserInteraction, startListening, stopListening]);
 
   useEffect(() => {
     return () => {
