@@ -190,7 +190,7 @@ export function ConversationFeed() {
           console.warn("Jarvis message save failed:", error);
         }
 
-        await speakWithElevenLabs(
+        await speakWithTTS(
           reply,
           () => {
             setIsProcessing(false);
