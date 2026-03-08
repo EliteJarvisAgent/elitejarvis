@@ -1,13 +1,20 @@
 import { CheckCircle, Clock, AlertTriangle, Bell, Settings, Activity } from "lucide-react";
 import { motion } from "framer-motion";
+import { useTasks } from "@/hooks/use-tasks";
 
-const metrics = [
-  { label: "Completed", value: "14", icon: CheckCircle, color: "text-success", bg: "bg-success/10 border-success/20" },
-  { label: "Time Saved", value: "3.2h", icon: Clock, color: "text-primary", bg: "bg-primary/10 border-primary/20" },
-  { label: "Pending", value: "7", icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10 border-warning/20" },
-];
+function useMetrics() {
+  const { tasks } = useTasks();
+  const completed = tasks.filter(t => t.status === "done").length;
+  const pending = tasks.filter(t => t.status !== "done").length;
+  return [
+    { label: "Completed", value: String(completed), icon: CheckCircle, color: "text-success", bg: "bg-success/10 border-success/20" },
+    { label: "Time Saved", value: completed > 0 ? `${(completed * 0.2).toFixed(1)}h` : "0h", icon: Clock, color: "text-primary", bg: "bg-primary/10 border-primary/20" },
+    { label: "Pending", value: String(pending), icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10 border-warning/20" },
+  ];
+}
 
 export function TopBar() {
+  const metrics = useMetrics();
   return (
     <header className="h-[72px] bg-card/60 backdrop-blur-xl border-b border-border/40 flex items-center justify-between px-6 lg:px-8">
       {/* Branding */}
