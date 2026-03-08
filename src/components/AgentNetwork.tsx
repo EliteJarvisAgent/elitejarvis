@@ -34,9 +34,11 @@ interface AgentNetworkProps {
   onInterrupt?: () => void;
   onUserInteraction?: () => void;
   onVoiceUnavailable?: (reason: string) => void;
+  onTranscriptPreview?: (text: string) => void;
+  onListeningChange?: (isListening: boolean) => void;
 }
 
-export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, onInterrupt, onUserInteraction, onVoiceUnavailable }: AgentNetworkProps) {
+export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, onInterrupt, onUserInteraction, onVoiceUnavailable, onTranscriptPreview, onListeningChange }: AgentNetworkProps) {
   const [agents, setAgents] = useState<SubAgent[]>(initialAgents);
   const [activeConnections, setActiveConnections] = useState<string[]>([]);
 
@@ -202,6 +204,8 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
           onInterrupt={onInterrupt}
           onUserInteraction={onUserInteraction}
           onVoiceUnavailable={onVoiceUnavailable}
+          onTranscriptPreview={onTranscriptPreview}
+          onListeningChange={onListeningChange}
         />
       </div>
     </div>

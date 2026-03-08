@@ -96,6 +96,8 @@ export function ConversationFeed() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [voiceNotice, setVoiceNotice] = useState<string>("");
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [isListening, setIsListening] = useState(false);
   const [manualText, setManualText] = useState("");
   const feedRef = useRef<HTMLDivElement>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -189,6 +191,8 @@ export function ConversationFeed() {
           onInterrupt={handleInterrupt}
           onUserInteraction={primeAudioPlayback}
           onVoiceUnavailable={setVoiceNotice}
+          onTranscriptPreview={setLiveTranscript}
+          onListeningChange={setIsListening}
         />
       </div>
 
@@ -203,7 +207,7 @@ export function ConversationFeed() {
       <div
         ref={feedRef}
         className="w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-2 scrollbar-thin"
-        style={{ maxHeight: "40%", minHeight: messages.length > 0 || isProcessing ? "80px" : "0px" }}
+        style={{ maxHeight: "40%", minHeight: messages.length > 0 || isProcessing || isListening || !!liveTranscript ? "80px" : "56px" }}
       >
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
@@ -229,6 +233,19 @@ export function ConversationFeed() {
             </motion.div>
           ))}
         </AnimatePresence>
+
+        {isListening && (
+          <div className="mb-2 rounded-xl border border-border bg-card/80 px-3 py-2 text-xs text-muted-foreground">
+            <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-primary" />
+            Listening… {liveTranscript || "speak now"}
+          </div>
+        )}
+
+        {!isListening && !isProcessing && messages.length === 0 && (
+          <div className="mb-2 rounded-xl border border-border bg-card/80 px-3 py-2 text-xs text-muted-foreground">
+            Transcript appears here after you speak.
+          </div>
+        )}
 
         {isProcessing && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start mb-2">
