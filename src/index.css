@@ -127,21 +127,38 @@
     animation: scan 4s linear infinite;
   }
 
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 4px;
+  /* Global scrollbar styling */
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
 
-  .scrollbar-thin::-webkit-scrollbar-track {
+  *::-webkit-scrollbar-track {
+    background: hsl(222 25% 6% / 0.5);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, hsl(185 90% 48% / 0.3), hsl(185 90% 48% / 0.1));
+    border-radius: 3px;
+    border: 1px solid hsl(185 90% 48% / 0.1);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, hsl(185 90% 48% / 0.5), hsl(185 90% 48% / 0.2));
+  }
+
+  *::-webkit-scrollbar-corner {
     background: transparent;
   }
 
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: hsl(222 18% 20%);
-    border-radius: 4px;
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(185 90% 48% / 0.25) hsl(222 25% 6% / 0.5);
   }
 
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: hsl(222 18% 28%);
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
   }
 }
 
