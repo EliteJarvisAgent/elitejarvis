@@ -85,7 +85,8 @@ export function VoiceOrb({
     } catch {
       onVoiceUnavailable?.("Microphone permission denied.");
       onListeningChange?.(false);
-  }, [onVoiceUnavailable]);
+    }
+  }, [onListeningChange, onVoiceUnavailable]);
 
   const startListening = useCallback(() => {
     if (isSpeaking && onInterrupt) onInterrupt();
@@ -94,6 +95,7 @@ export function VoiceOrb({
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
       onVoiceUnavailable?.("Voice recognition isn't supported on this browser.");
+      onListeningChange?.(false);
       return;
     }
 
@@ -122,13 +124,16 @@ export function VoiceOrb({
       const finalChunk = finalText.trim();
       const interimChunk = interimText.trim();
       pendingTranscriptRef.current = finalChunk || interimChunk || pendingTranscriptRef.current;
+      onTranscriptPreview?.(pendingTranscriptRef.current);
 
       if (finalChunk) emitTranscript(finalChunk);
-      onTranscriptPreview?.(pendingTranscriptRef.current);
+    };
 
     recognition.onerror = (event: Event) => {
       const errorEvent = event as Event & { error?: string };
-      const reason = errorEvent.error ? `Voice recognition failed (${errorEvent.error}).` : "Voice recognition failed. Please try again.";
+      const reason = errorEvent.error
+        ? `Voice recognition failed (${errorEvent.error}).`
+        : "Voice recognition failed. Please try again.";
       onVoiceUnavailable?.(reason);
       setIsListening(false);
       onListeningChange?.(false);
@@ -151,7 +156,16 @@ export function VoiceOrb({
     setIsListening(true);
     onListeningChange?.(true);
     startAnalyser();
-  }, [emitTranscript, isSpeaking, onInterrupt, onVoiceUnavailable, onTranscriptPreview, onListeningChange, startAnalyser, stopAnalyser]);
+  }, [
+    emitTranscript,
+    isSpeaking,
+    onInterrupt,
+    onListeningChange,
+    onTranscriptPreview,
+    onVoiceUnavailable,
+    startAnalyser,
+    stopAnalyser,
+  ]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -160,7 +174,7 @@ export function VoiceOrb({
     onListeningChange?.(false);
     onTranscriptPreview?.("");
     stopAnalyser();
-  }, [stopAnalyser]);
+  }, [onListeningChange, onTranscriptPreview, stopAnalyser]);
 
   const handleOrbClick = useCallback(() => {
     onUserInteraction?.();
@@ -199,8 +213,8 @@ export function VoiceOrb({
             borderColor: isListening
               ? `hsl(185, 90%, 48%, ${0.3 - i * 0.05})`
               : isSpeaking
-              ? `hsl(160, 70%, 50%, ${0.3 - i * 0.05})`
-              : `hsl(185, 90%, 48%, ${0.08 - i * 0.015})`,
+                ? `hsl(160, 70%, 50%, ${0.3 - i * 0.05})`
+                : `hsl(185, 90%, 48%, ${0.08 - i * 0.015})`,
             borderStyle: "solid",
           }}
           transition={{ duration: 0.15, ease: "easeOut" }}
@@ -216,8 +230,8 @@ export function VoiceOrb({
           background: isListening
             ? "radial-gradient(circle, hsl(185, 90%, 48%, 0.35), hsl(185, 90%, 48%, 0.05) 60%, transparent 80%)"
             : isSpeaking
-            ? "radial-gradient(circle, hsl(160, 70%, 50%, 0.35), hsl(160, 70%, 50%, 0.05) 60%, transparent 80%)"
-            : "radial-gradient(circle, hsl(185, 90%, 48%, 0.1), transparent 70%)",
+              ? "radial-gradient(circle, hsl(160, 70%, 50%, 0.35), hsl(160, 70%, 50%, 0.05) 60%, transparent 80%)"
+              : "radial-gradient(circle, hsl(185, 90%, 48%, 0.1), transparent 70%)",
         }}
         transition={{ duration: 0.12 }}
       />
@@ -229,8 +243,8 @@ export function VoiceOrb({
           background: isListening
             ? `hsl(185, 90%, 50%, ${0.15 + activeVolume * 0.25})`
             : isSpeaking
-            ? `hsl(160, 70%, 50%, ${0.15 + activeVolume * 0.25})`
-            : "hsl(185, 90%, 48%, 0.05)",
+              ? `hsl(160, 70%, 50%, ${0.15 + activeVolume * 0.25})`
+              : "hsl(185, 90%, 48%, 0.05)",
           scale: isActive ? 1 + activeVolume * 0.2 : 1,
         }}
         transition={{ duration: 0.1 }}
@@ -244,8 +258,8 @@ export function VoiceOrb({
           background: isListening
             ? "radial-gradient(circle at 35% 30%, hsl(185, 90%, 70%), hsl(185, 90%, 35%), hsl(200, 80%, 20%))"
             : isSpeaking
-            ? "radial-gradient(circle at 35% 30%, hsl(160, 80%, 65%), hsl(160, 70%, 30%), hsl(170, 60%, 15%))"
-            : "radial-gradient(circle at 35% 30%, hsl(185, 90%, 48%, 0.3), hsl(185, 90%, 48%, 0.08), transparent)",
+              ? "radial-gradient(circle at 35% 30%, hsl(160, 80%, 65%), hsl(160, 70%, 30%), hsl(170, 60%, 15%))"
+              : "radial-gradient(circle at 35% 30%, hsl(185, 90%, 48%, 0.3), hsl(185, 90%, 48%, 0.08), transparent)",
           boxShadow: isActive
             ? isListening
               ? `0 0 ${20 + activeVolume * 30}px ${6 + activeVolume * 12}px hsl(185, 90%, 48%, ${0.15 + activeVolume * 0.2})`
