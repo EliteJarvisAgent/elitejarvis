@@ -18,32 +18,39 @@ export function useMessages() {
   // Load messages on mount
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from("messages")
-        .select("*")
-        .order("timestamp", { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from("messages")
+          .select("*")
+          .order("timestamp", { ascending: true });
 
-      if (data) {
-        const msgs: Message[] = data.map((m: any) => ({
-          id: m.id,
-          sender: m.sender as "matthew" | "jarvis",
-          text: m.text,
-          timestamp: new Date(m.timestamp).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        }));
-        setMessages(msgs);
-        // Rebuild chat history
-        setChatHistory(
-          data.map((m: any) => ({
-            role: m.sender === "matthew" ? "user" as const : "assistant" as const,
-            content: m.text,
-          }))
-        );
+        if (error) throw error;
+
+        if (data) {
+          const msgs: Message[] = data.map((m: any) => ({
+            id: m.id,
+            sender: m.sender as "matthew" | "jarvis",
+            text: m.text,
+            timestamp: new Date(m.timestamp).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          }));
+          setMessages(msgs);
+          setChatHistory(
+            data.map((m: any) => ({
+              role: m.sender === "matthew" ? ("user" as const) : ("assistant" as const),
+              content: m.text,
+            }))
+          );
+        }
+      } catch (error) {
+        console.warn("Messages load failed, continuing in local mode:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
+
     load();
   }, []);
 
@@ -85,28 +92,54 @@ export function useMessages() {
 
   const addMessage = useCallback(
     async (sender: "matthew" | "jarvis", text: string) => {
-      const { data } = await supabase
-        .from("messages")
-        .insert({ sender, text })
-        .select()
-        .single();
+      const fallbackMessage: Message = {
+        id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        sender,
+        text,
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
 
-      // Optimistic local update if realtime hasn't fired yet
-      if (data) {
-        const msg: Message = {
-          id: data.id,
-          sender: data.sender as "matthew" | "jarvis",
-          text: data.text,
-          timestamp: new Date(data.timestamp).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        };
-        setMessages((prev) => {
-          if (prev.some((p) => p.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
+      try {
+        const { data, error } = await supabase
+          .from("messages")
+          .insert({ sender, text })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          const msg: Message = {
+            id: data.id,
+            sender: data.sender as "matthew" | "jarvis",
+            text: data.text,
+            timestamp: new Date(data.timestamp).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          };
+          setMessages((prev) => {
+            if (prev.some((p) => p.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
+          setChatHistory((prev) => [
+            ...prev,
+            { role: sender === "matthew" ? ("user" as const) : ("assistant" as const), content: text },
+          ]);
+          return;
+        }
+      } catch (error) {
+        console.warn("Message save failed, using local message:", error);
       }
+
+      setMessages((prev) => [...prev, fallbackMessage]);
+      setChatHistory((prev) => [
+        ...prev,
+        { role: sender === "matthew" ? ("user" as const) : ("assistant" as const), content: text },
+      ]);
     },
     []
   );

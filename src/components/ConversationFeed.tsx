@@ -5,19 +5,20 @@ import { useMessages } from "@/hooks/use-messages";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
+const CLOUD_BASE_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co`;
+const CLOUD_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 async function askJarvis(history: ChatMsg[]): Promise<string> {
-  const response = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/jarvis-chat`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      },
-      body: JSON.stringify({ messages: history }),
-    }
-  );
+  const response = await fetch(`${CLOUD_BASE_URL}/functions/v1/jarvis-chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: CLOUD_KEY,
+      Authorization: `Bearer ${CLOUD_KEY}`,
+    },
+    body: JSON.stringify({ messages: history }),
+  });
 
   if (!response.ok) throw new Error(`Jarvis chat failed: ${response.status}`);
   const data = await response.json();
@@ -31,18 +32,15 @@ async function speakWithElevenLabs(
   audioRef?: React.MutableRefObject<HTMLAudioElement | null>
 ): Promise<void> {
   try {
-    const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ text }),
-      }
-    );
+    const response = await fetch(`${CLOUD_BASE_URL}/functions/v1/elevenlabs-tts`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: CLOUD_KEY,
+        Authorization: `Bearer ${CLOUD_KEY}`,
+      },
+      body: JSON.stringify({ text }),
+    });
 
     if (!response.ok) throw new Error(`TTS failed: ${response.status}`);
     const audioBlob = await response.blob();
@@ -99,14 +97,26 @@ export function ConversationFeed() {
   const doSend = useCallback(async (text: string) => {
     if (!text.trim()) return;
     handleInterrupt();
-    await addMessage("matthew", text);
-    setIsProcessing(true);
 
+    // Never block the voice flow on DB errors
+    try {
+      await addMessage("matthew", text);
+    } catch (error) {
+      console.warn("User message save failed:", error);
+    }
+
+    setIsProcessing(true);
     const newHistory: ChatMsg[] = [...chatHistory, { role: "user", content: text }];
 
     try {
       const reply = await askJarvis(newHistory);
-      await addMessage("jarvis", reply);
+
+      try {
+        await addMessage("jarvis", reply);
+      } catch (error) {
+        console.warn("Jarvis message save failed:", error);
+      }
+
       speakWithElevenLabs(
         reply,
         () => { setIsProcessing(false); setIsSpeaking(true); },
@@ -116,7 +126,11 @@ export function ConversationFeed() {
     } catch (err) {
       console.error("Jarvis error:", err);
       setIsProcessing(false);
-      await addMessage("jarvis", "Apologies sir, I'm experiencing a temporary disruption. Please try again.");
+      try {
+        await addMessage("jarvis", "Apologies sir, I'm experiencing a temporary disruption. Please try again.");
+      } catch {
+        // no-op: local fallback handled in hook
+      }
     }
   }, [chatHistory, handleInterrupt, addMessage]);
 
