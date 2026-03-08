@@ -163,7 +163,8 @@ export function ConversationFeed() {
       speakWithElevenLabs(
         reply,
         () => { setIsProcessing(false); setIsSpeaking(true); },
-        () => setIsSpeaking(false)
+        () => setIsSpeaking(false),
+        currentAudioRef
       );
     } catch (err) {
       console.error("Jarvis error:", err);
@@ -217,7 +218,7 @@ export function ConversationFeed() {
 
       {/* Agent Network with central orb */}
       <div className="flex-1 flex items-center justify-center">
-        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} />
+        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} onInterrupt={handleInterrupt} />
       </div>
     </div>
   );
