@@ -69,17 +69,41 @@ async function speakWithElevenLabs(
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
-      utter.rate = 0.95;
-      utter.pitch = 0.85;
+      utter.rate = 0.92;
+      utter.pitch = 0.8;
       utter.volume = 1;
-      const voices = window.speechSynthesis.getVoices();
+
+      // Wait for voices to load (some browsers load async)
+      const getVoices = (): Promise<SpeechSynthesisVoice[]> =>
+        new Promise((resolve) => {
+          const voices = window.speechSynthesis.getVoices();
+          if (voices.length > 0) return resolve(voices);
+          window.speechSynthesis.onvoiceschanged = () =>
+            resolve(window.speechSynthesis.getVoices());
+          setTimeout(() => resolve(window.speechSynthesis.getVoices()), 500);
+        });
+
+      const voices = await getVoices();
+      const femalePattern = /female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa|victoria|alice|sarah|jessica|lily|matilda|siri.*female/i;
+
+      // Priority 1: Exact British male voices by name
       const preferred =
-        voices.find((v) => v.lang.startsWith("en-GB") && /male|daniel|george|james/i.test(v.name)) ||
-        voices.find((v) => v.lang.startsWith("en") && /male|daniel|george|james|david|mark|alex/i.test(v.name)) ||
-        voices.find((v) => v.lang.startsWith("en-GB") && !/female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa/i.test(v.name)) ||
-        voices.find((v) => v.lang.startsWith("en") && !/female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa/i.test(v.name)) ||
+        voices.find((v) => /george/i.test(v.name) && v.lang.startsWith("en-GB")) ||
+        voices.find((v) => /daniel/i.test(v.name) && v.lang.startsWith("en-GB")) ||
+        voices.find((v) => /james/i.test(v.name) && v.lang.startsWith("en-GB")) ||
+        voices.find((v) => /google uk english male/i.test(v.name)) ||
+        // Priority 2: Any en-GB voice that's not female
+        voices.find((v) => v.lang.startsWith("en-GB") && !femalePattern.test(v.name)) ||
+        // Priority 3: Any English male-sounding voice
+        voices.find((v) => v.lang.startsWith("en") && /male|david|mark|alex|tom|oliver|arthur/i.test(v.name) && !femalePattern.test(v.name)) ||
+        // Priority 4: Any English voice that's not female
+        voices.find((v) => v.lang.startsWith("en") && !femalePattern.test(v.name)) ||
         voices[0];
-      if (preferred) utter.voice = preferred;
+
+      if (preferred) {
+        console.log("Jarvis fallback voice:", preferred.name, preferred.lang);
+        utter.voice = preferred;
+      }
       onStart();
       utter.onend = onEnd;
       utter.onerror = () => onEnd();
