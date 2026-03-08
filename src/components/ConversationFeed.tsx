@@ -134,6 +134,8 @@ export function ConversationFeed() {
 
   const doSend = useCallback(async (text: string) => {
     if (!text.trim()) return;
+    // Stop any ongoing Jarvis speech immediately
+    handleInterrupt();
     const newMsg: Message = {
       id: Date.now().toString(),
       sender: "matthew",
@@ -180,7 +182,7 @@ export function ConversationFeed() {
         },
       ]);
     }
-  }, [chatHistory]);
+  }, [chatHistory, handleInterrupt]);
 
   return (
     <div className="flex flex-col h-full items-center">
