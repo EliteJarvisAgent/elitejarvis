@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Lock, Activity } from "lucide-react";
+import { Lock, Activity, Eye, EyeOff } from "lucide-react";
 
 const CORRECT_PASSWORD = "Xk9#mV2$qLz7!nR4";
 const STORAGE_KEY = "jarvis-auth";
