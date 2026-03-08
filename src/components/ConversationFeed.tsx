@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AgentNetwork } from "./AgentNetwork";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -10,13 +9,14 @@ interface Message {
   timestamp: string;
 }
 
-async function speakWithGoogleTTS(
+async function speakWithElevenLabs(
   text: string,
+  onStart: () => void,
   onEnd: () => void
 ): Promise<void> {
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-tts`,
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
       {
         method: "POST",
         headers: {
@@ -24,16 +24,7 @@ async function speakWithGoogleTTS(
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({
-          text,
-          voice: {
-            languageCode: "en-US",
-            name: "en-US-Neural2-D",
-            ssmlGender: "MALE",
-            speakingRate: 1.0,
-            pitch: -2.0,
-          },
-        }),
+        body: JSON.stringify({ text }),
       }
     );
 
@@ -41,22 +32,31 @@ async function speakWithGoogleTTS(
       throw new Error(`TTS failed: ${response.status}`);
     }
 
-    const data = await response.json();
-    const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(audioUrl);
-    audio.onended = onEnd;
-    audio.onerror = onEnd;
+    
+    audio.onplay = onStart;
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+      onEnd();
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(audioUrl);
+      onEnd();
+    };
     await audio.play();
   } catch (err) {
-    console.error("Google TTS error, falling back to browser TTS:", err);
-    // Fallback to browser TTS
+    console.error("ElevenLabs TTS error, falling back to browser TTS:", err);
     if ("speechSynthesis" in window) {
       const utter = new SpeechSynthesisUtterance(text);
       utter.rate = 1;
       utter.pitch = 0.9;
+      onStart();
       utter.onend = onEnd;
       window.speechSynthesis.speak(utter);
     } else {
+      onStart();
       setTimeout(onEnd, 2000);
     }
   }
@@ -65,6 +65,7 @@ async function speakWithGoogleTTS(
 export function ConversationFeed() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export function ConversationFeed() {
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
     setMessages((prev) => [...prev, newMsg]);
-    setIsSpeaking(true);
+    setIsProcessing(true);
 
     setTimeout(() => {
       const response = "Acknowledged. Processing your request now. I'll update you shortly with results.";
@@ -96,7 +97,11 @@ export function ConversationFeed() {
         },
       ]);
 
-      speakWithGoogleTTS(response, () => setIsSpeaking(false));
+      speakWithElevenLabs(
+        response,
+        () => { setIsProcessing(false); setIsSpeaking(true); },
+        () => setIsSpeaking(false)
+      );
     }, 800);
   }, []);
 
@@ -136,7 +141,7 @@ export function ConversationFeed() {
 
       {/* Agent Network with central orb */}
       <div className="flex-1 flex items-center justify-center">
-        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} />
+        <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} />
       </div>
     </div>
   );
