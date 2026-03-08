@@ -1,13 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AgentNetwork } from "./AgentNetwork";
-
-interface Message {
-  id: string;
-  sender: "matthew" | "jarvis";
-  text: string;
-  timestamp: string;
-}
+import { useMessages } from "@/hooks/use-messages";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
@@ -53,46 +47,29 @@ async function speakWithElevenLabs(
       }
     );
 
-    if (!response.ok) {
-      throw new Error(`TTS failed: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`TTS failed: ${response.status}`);
 
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(audioUrl);
     if (audioRef) audioRef.current = audio;
-    
+
     audio.onplay = onStart;
-    audio.onended = () => {
-      URL.revokeObjectURL(audioUrl);
-      if (audioRef) audioRef.current = null;
-      onEnd();
-    };
-    audio.onerror = () => {
-      URL.revokeObjectURL(audioUrl);
-      if (audioRef) audioRef.current = null;
-      onEnd();
-    };
+    audio.onended = () => { URL.revokeObjectURL(audioUrl); if (audioRef) audioRef.current = null; onEnd(); };
+    audio.onerror = () => { URL.revokeObjectURL(audioUrl); if (audioRef) audioRef.current = null; onEnd(); };
     await audio.play();
   } catch (err) {
     console.warn("ElevenLabs TTS unavailable, using browser TTS:", err);
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
-      utter.rate = 0.95;
-      utter.pitch = 0.85;
-      utter.volume = 1;
+      utter.rate = 0.95; utter.pitch = 0.85; utter.volume = 1;
       const voices = window.speechSynthesis.getVoices();
-      // Strongly prefer male voices for Jarvis feel
-      const preferred = voices.find(
-        (v) => v.lang.startsWith("en-GB") && /male|daniel|george|james/i.test(v.name)
-      ) || voices.find(
-        (v) => v.lang.startsWith("en") && /male|daniel|george|james|david|mark|alex/i.test(v.name)
-      ) || voices.find(
-        (v) => v.lang.startsWith("en-GB") && !/female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa/i.test(v.name)
-      ) || voices.find(
-        (v) => v.lang.startsWith("en") && !/female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa/i.test(v.name)
-      ) || voices[0];
+      const preferred = voices.find(v => v.lang.startsWith("en-GB") && /male|daniel|george|james/i.test(v.name))
+        || voices.find(v => v.lang.startsWith("en") && /male|daniel|george|james|david|mark|alex/i.test(v.name))
+        || voices.find(v => v.lang.startsWith("en-GB") && !/female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa/i.test(v.name))
+        || voices.find(v => v.lang.startsWith("en") && !/female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa/i.test(v.name))
+        || voices[0];
       if (preferred) utter.voice = preferred;
       onStart();
       utter.onend = onEnd;
@@ -106,62 +83,41 @@ async function speakWithElevenLabs(
 }
 
 export function ConversationFeed() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [chatHistory, setChatHistory] = useState<ChatMsg[]>([]);
+  const { messages, chatHistory, addMessage } = useMessages();
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const handleInterrupt = useCallback(() => {
-    // Stop any playing audio
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
-    }
-    // Stop browser speech synthesis
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+    if (currentAudioRef.current) { currentAudioRef.current.pause(); currentAudioRef.current = null; }
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setIsSpeaking(false);
     setIsProcessing(false);
   }, []);
 
   useEffect(() => {
-    if (feedRef.current) {
-      feedRef.current.scrollTop = feedRef.current.scrollHeight;
-    }
+    if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
   }, [messages]);
 
   const doSend = useCallback(async (text: string) => {
     if (!text.trim()) return;
-    // Stop any ongoing Jarvis speech immediately
     handleInterrupt();
-    const newMsg: Message = {
-      id: Date.now().toString(),
-      sender: "matthew",
-      text,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-    setMessages((prev) => [...prev, newMsg]);
+
+    // Save user message to DB
+    await addMessage("matthew", text);
     setIsProcessing(true);
 
-    const newHistory: ChatMsg[] = [...chatHistory, { role: "user", content: text }];
-    setChatHistory(newHistory);
+    const newHistory: { role: "user" | "assistant"; content: string }[] = [
+      ...chatHistory,
+      { role: "user", content: text },
+    ];
 
     try {
       const reply = await askJarvis(newHistory);
 
-      setChatHistory((prev) => [...prev, { role: "assistant", content: reply }]);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          sender: "jarvis",
-          text: reply,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        },
-      ]);
+      // Save Jarvis reply to DB
+      await addMessage("jarvis", reply);
 
       speakWithElevenLabs(
         reply,
@@ -173,21 +129,12 @@ export function ConversationFeed() {
       console.error("Jarvis error:", err);
       setIsProcessing(false);
       const fallback = "Apologies sir, I'm experiencing a temporary disruption. Please try again.";
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          sender: "jarvis",
-          text: fallback,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        },
-      ]);
+      await addMessage("jarvis", fallback);
     }
-  }, [chatHistory, handleInterrupt]);
+  }, [chatHistory, handleInterrupt, addMessage]);
 
   return (
     <div className="flex flex-col h-full items-center">
-      {/* Transcript log */}
       <div
         ref={feedRef}
         className="w-full overflow-y-auto px-6 pt-4 pb-2 scrollbar-thin"
@@ -219,7 +166,6 @@ export function ConversationFeed() {
         </AnimatePresence>
       </div>
 
-      {/* Agent Network with central orb */}
       <div className="flex-1 flex items-center justify-center">
         <AgentNetwork onTranscript={doSend} isSpeaking={isSpeaking} isProcessing={isProcessing} onInterrupt={handleInterrupt} />
       </div>
