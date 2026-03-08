@@ -137,5 +137,13 @@ export function useTasks() {
     []
   );
 
-  return { tasks, isLoading, addTask, updateTask };
+  const deleteTask = useCallback(
+    async (id: string) => {
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+      await supabase.from("tasks").delete().eq("id", id);
+    },
+    []
+  );
+
+  return { tasks, isLoading, addTask, updateTask, deleteTask };
 }
