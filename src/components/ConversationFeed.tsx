@@ -5,11 +5,19 @@ import { useMessages } from "@/hooks/use-messages";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
-import { api } from "@/lib/backend-client";
+const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "blpkggmfpxrjvcoclssq";
+const CLOUD_URL = `https://${PROJECT_ID}.supabase.co`;
+const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 async function askJarvis(history: ChatMsg[]): Promise<string> {
   try {
-    const data = await api.askJarvis(history);
+    const res = await fetch(`${CLOUD_URL}/functions/v1/jarvis-chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: CLOUD_KEY, Authorization: `Bearer ${CLOUD_KEY}` },
+      body: JSON.stringify({ messages: history }),
+    });
+    if (!res.ok) throw new Error(`${res.status}`);
+    const data = await res.json();
     return data.reply || "Apologies sir, I'm having difficulty processing that.";
   } catch {
     return "Apologies sir, I'm having difficulty processing that.";
