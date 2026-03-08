@@ -63,10 +63,8 @@ export function VoiceOrb({
     [onTranscript]
   );
 
-  const startAnalyser = useCallback(async () => {
+  const startAnalyserFromStream = useCallback((stream: MediaStream) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
       const ctx = new AudioContext();
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
@@ -83,10 +81,9 @@ export function VoiceOrb({
       };
       tick();
     } catch {
-      onVoiceUnavailable?.("Microphone permission denied.");
-      onListeningChange?.(false);
+      onVoiceUnavailable?.("Microphone visualization unavailable.");
     }
-  }, [onListeningChange, onVoiceUnavailable]);
+  }, [onVoiceUnavailable]);
 
   const startListening = useCallback(() => {
     if (isSpeaking && onInterrupt) onInterrupt();
