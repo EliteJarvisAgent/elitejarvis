@@ -90,7 +90,7 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
           const pos = agentPositions[i];
           const isConnected = activeConnections.includes(agent.id);
           // Org-chart style: vertical line down from Jarvis, then horizontal to agent
-          const midY = 210;
+          const midY = 170;
           return (
             <g key={agent.id}>
               {/* Vertical from Jarvis */}
