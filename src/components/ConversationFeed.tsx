@@ -125,6 +125,7 @@ export function ConversationFeed() {
   const [manualText, setManualText] = useState("");
   const feedRef = useRef<HTMLDivElement>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUnlockedRef = useRef(false);
 
   const handleInterrupt = useCallback(() => {
     if (currentAudioRef.current) {
@@ -137,15 +138,31 @@ export function ConversationFeed() {
   }, []);
 
   const primeAudioPlayback = useCallback(() => {
+    if (audioUnlockedRef.current) return;
+
     const audio = currentAudioRef.current ?? new Audio();
     currentAudioRef.current = audio;
+    audio.preload = "auto";
     audio.muted = true;
-    const maybePromise = audio.play();
-    if (maybePromise?.catch) {
-      maybePromise.catch(() => undefined).finally(() => {
-        audio.pause();
-        audio.muted = false;
-      });
+    audio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
+
+    const unlockPromise = audio.play();
+    if (unlockPromise?.then) {
+      unlockPromise
+        .then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          audio.muted = false;
+          audioUnlockedRef.current = true;
+        })
+        .catch(() => {
+          audio.muted = false;
+        });
+    } else {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = false;
+      audioUnlockedRef.current = true;
     }
   }, []);
 
