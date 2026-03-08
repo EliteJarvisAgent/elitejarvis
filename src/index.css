@@ -191,17 +191,16 @@
   }
 
   *::-webkit-scrollbar-track {
-    background: hsl(222 25% 6% / 0.5);
+    background: transparent;
   }
 
   *::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, hsl(185 90% 48% / 0.3), hsl(185 90% 48% / 0.1));
+    background: hsl(var(--muted-foreground) / 0.2);
     border-radius: 3px;
-    border: 1px solid hsl(185 90% 48% / 0.1);
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, hsl(185 90% 48% / 0.5), hsl(185 90% 48% / 0.2));
+    background: hsl(var(--muted-foreground) / 0.3);
   }
 
   *::-webkit-scrollbar-corner {
@@ -211,7 +210,7 @@
   /* Firefox */
   * {
     scrollbar-width: thin;
-    scrollbar-color: hsl(185 90% 48% / 0.25) hsl(222 25% 6% / 0.5);
+    scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
