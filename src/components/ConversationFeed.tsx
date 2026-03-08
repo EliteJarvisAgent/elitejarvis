@@ -9,6 +9,30 @@ interface Message {
   timestamp: string;
 }
 
+type ChatMsg = { role: "user" | "assistant"; content: string };
+
+async function askJarvis(history: ChatMsg[]): Promise<string> {
+  const response = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/jarvis-chat`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({ messages: history }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Jarvis chat failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.reply || "Apologies sir, I'm having difficulty processing that.";
+}
+
 async function speakWithElevenLabs(
   text: string,
   onStart: () => void,
@@ -49,13 +73,11 @@ async function speakWithElevenLabs(
   } catch (err) {
     console.warn("ElevenLabs TTS unavailable, using browser TTS:", err);
     if ("speechSynthesis" in window) {
-      // Cancel any ongoing speech
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       utter.rate = 0.95;
       utter.pitch = 0.85;
       utter.volume = 1;
-      // Try to pick a British English male voice for Jarvis feel
       const voices = window.speechSynthesis.getVoices();
       const preferred = voices.find(
         (v) => v.lang.startsWith("en-GB") && v.name.toLowerCase().includes("male")
@@ -80,6 +102,7 @@ async function speakWithElevenLabs(
 
 export function ConversationFeed() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMsg[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
@@ -90,7 +113,7 @@ export function ConversationFeed() {
     }
   }, [messages]);
 
-  const doSend = useCallback((text: string) => {
+  const doSend = useCallback(async (text: string) => {
     if (!text.trim()) return;
     const newMsg: Message = {
       id: Date.now().toString(),
@@ -101,25 +124,43 @@ export function ConversationFeed() {
     setMessages((prev) => [...prev, newMsg]);
     setIsProcessing(true);
 
-    setTimeout(() => {
-      const response = "Acknowledged. Processing your request now. I'll update you shortly with results.";
+    const newHistory: ChatMsg[] = [...chatHistory, { role: "user", content: text }];
+    setChatHistory(newHistory);
+
+    try {
+      const reply = await askJarvis(newHistory);
+
+      setChatHistory((prev) => [...prev, { role: "assistant", content: reply }]);
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           sender: "jarvis",
-          text: response,
+          text: reply,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
 
       speakWithElevenLabs(
-        response,
+        reply,
         () => { setIsProcessing(false); setIsSpeaking(true); },
         () => setIsSpeaking(false)
       );
-    }, 800);
-  }, []);
+    } catch (err) {
+      console.error("Jarvis error:", err);
+      setIsProcessing(false);
+      const fallback = "Apologies sir, I'm experiencing a temporary disruption. Please try again.";
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          sender: "jarvis",
+          text: fallback,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+    }
+  }, [chatHistory]);
 
   return (
     <div className="flex flex-col h-full items-center">
