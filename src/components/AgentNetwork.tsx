@@ -33,9 +33,10 @@ interface AgentNetworkProps {
   isProcessing?: boolean;
   onInterrupt?: () => void;
   onUserInteraction?: () => void;
+  onVoiceUnavailable?: (reason: string) => void;
 }
 
-export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, onInterrupt, onUserInteraction }: AgentNetworkProps) {
+export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, onInterrupt, onUserInteraction, onVoiceUnavailable }: AgentNetworkProps) {
   const [agents, setAgents] = useState<SubAgent[]>(initialAgents);
   const [activeConnections, setActiveConnections] = useState<string[]>([]);
 
@@ -195,7 +196,13 @@ export function AgentNetwork({ onTranscript, isSpeaking, isProcessing = false, o
 
       {/* Central Jarvis orb - responsive sizing */}
       <div className="absolute" style={{ top: "50%", left: "50%", transform: "translate(-50%, -60%)" }}>
-        <VoiceOrb onTranscript={onTranscript} isSpeaking={isSpeaking} onInterrupt={onInterrupt} onUserInteraction={onUserInteraction} />
+        <VoiceOrb
+          onTranscript={onTranscript}
+          isSpeaking={isSpeaking}
+          onInterrupt={onInterrupt}
+          onUserInteraction={onUserInteraction}
+          onVoiceUnavailable={onVoiceUnavailable}
+        />
       </div>
     </div>
   );

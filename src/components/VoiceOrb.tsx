@@ -6,9 +6,16 @@ interface VoiceOrbProps {
   isSpeaking?: boolean;
   onInterrupt?: () => void;
   onUserInteraction?: () => void;
+  onVoiceUnavailable?: (reason: string) => void;
 }
 
-export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt, onUserInteraction }: VoiceOrbProps) {
+export function VoiceOrb({
+  onTranscript,
+  isSpeaking = false,
+  onInterrupt,
+  onUserInteraction,
+  onVoiceUnavailable,
+}: VoiceOrbProps) {
   const [isListening, setIsListening] = useState(false);
   const [volume, setVolume] = useState(0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -21,7 +28,10 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt, onUser
 
   const [jarvisVolume, setJarvisVolume] = useState(0);
   useEffect(() => {
-    if (!isSpeaking) { setJarvisVolume(0); return; }
+    if (!isSpeaking) {
+      setJarvisVolume(0);
+      return;
+    }
     const interval = setInterval(() => {
       setJarvisVolume(0.3 + Math.random() * 0.7);
     }, 80);
@@ -39,12 +49,15 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt, onUser
     setVolume(0);
   }, []);
 
-  const emitTranscript = useCallback((value: string) => {
-    const cleaned = value.trim();
-    if (!cleaned || emittedThisSessionRef.current) return;
-    emittedThisSessionRef.current = true;
-    onTranscript(cleaned);
-  }, [onTranscript]);
+  const emitTranscript = useCallback(
+    (value: string) => {
+      const cleaned = value.trim();
+      if (!cleaned || emittedThisSessionRef.current) return;
+      emittedThisSessionRef.current = true;
+      onTranscript(cleaned);
+    },
+    [onTranscript]
+  );
 
   const startAnalyser = useCallback(async () => {
     try {
@@ -66,16 +79,19 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt, onUser
       };
       tick();
     } catch {
-      // mic denied
+      onVoiceUnavailable?.("Microphone permission denied.");
     }
-  }, []);
+  }, [onVoiceUnavailable]);
 
   const startListening = useCallback(() => {
     if (isSpeaking && onInterrupt) onInterrupt();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) return;
+    if (!SR) {
+      onVoiceUnavailable?.("Voice recognition isn't supported on this browser.");
+      return;
+    }
 
     pendingTranscriptRef.current = "";
     emittedThisSessionRef.current = false;
@@ -102,12 +118,11 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt, onUser
       const interimChunk = interimText.trim();
       pendingTranscriptRef.current = finalChunk || interimChunk || pendingTranscriptRef.current;
 
-      if (finalChunk) {
-        emitTranscript(finalChunk);
-      }
+      if (finalChunk) emitTranscript(finalChunk);
     };
 
     recognition.onerror = () => {
+      onVoiceUnavailable?.("Voice recognition failed. Please try again.");
       setIsListening(false);
       stopAnalyser();
     };
@@ -125,7 +140,7 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt, onUser
     recognitionRef.current = recognition;
     setIsListening(true);
     startAnalyser();
-  }, [emitTranscript, isSpeaking, onInterrupt, startAnalyser, stopAnalyser]);
+  }, [emitTranscript, isSpeaking, onInterrupt, onVoiceUnavailable, startAnalyser, stopAnalyser]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -144,7 +159,10 @@ export function VoiceOrb({ onTranscript, isSpeaking = false, onInterrupt, onUser
   }, [isListening, onUserInteraction, startListening, stopListening]);
 
   useEffect(() => {
-    return () => { recognitionRef.current?.stop(); stopAnalyser(); };
+    return () => {
+      recognitionRef.current?.stop();
+      stopAnalyser();
+    };
   }, [stopAnalyser]);
 
   const orbSize = 160;
