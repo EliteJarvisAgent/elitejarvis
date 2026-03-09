@@ -9,16 +9,22 @@ const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "blpkggmfpxrjvcoc
 const CLOUD_URL = `https://${PROJECT_ID}.supabase.co`;
 const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+const WEBHOOK_URL = "https://lovable-jarvis-bridge-btwfx40ot-jarvis-3869s-projects.vercel.app";
+
 async function askJarvis(history: ChatMsg[]): Promise<string> {
   try {
-    const res = await fetch(`${CLOUD_URL}/functions/v1/jarvis-chat`, {
+    // Get the latest user message to send to the webhook
+    const lastUserMsg = [...history].reverse().find((m) => m.role === "user");
+    const message = lastUserMsg?.content ?? "";
+
+    const res = await fetch(WEBHOOK_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", apikey: CLOUD_KEY, Authorization: `Bearer ${CLOUD_KEY}` },
-      body: JSON.stringify({ messages: history }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
     });
     if (!res.ok) throw new Error(`${res.status}`);
     const data = await res.json();
-    return data.reply || "Apologies sir, I'm having difficulty processing that.";
+    return data.response || "Apologies sir, I'm having difficulty processing that.";
   } catch {
     return "Apologies sir, I'm having difficulty processing that.";
   }
