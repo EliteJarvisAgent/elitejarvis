@@ -37,16 +37,16 @@ async function speakWithTTS(
   audioRef: React.MutableRefObject<HTMLAudioElement | null>
 ): Promise<void> {
   try {
-    const ttsRes = await fetch(`${CLOUD_URL}/functions/v1/google-tts`, {
+    // Use ElevenLabs TTS (George voice) via edge function
+    const ttsRes = await fetch(`${CLOUD_URL}/functions/v1/elevenlabs-tts`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: CLOUD_KEY, Authorization: `Bearer ${CLOUD_KEY}` },
       body: JSON.stringify({ text }),
     });
     if (!ttsRes.ok) throw new Error(`TTS failed: ${ttsRes.status}`);
-    const ttsData = await ttsRes.json();
-    if (!ttsData.audioContent) throw new Error("No audio content returned");
 
-    const audioUrl = `data:audio/mpeg;base64,${ttsData.audioContent}`;
+    const audioBlob = await ttsRes.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
     const audio = audioRef.current ?? new Audio();
     audioRef.current = audio;
 
@@ -55,8 +55,14 @@ async function speakWithTTS(
     audio.preload = "auto";
 
     audio.onplay = onStart;
-    audio.onended = onEnd;
-    audio.onerror = () => onEnd();
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+      onEnd();
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(audioUrl);
+      onEnd();
+    };
 
     await audio.play();
   } catch (err) {
@@ -68,7 +74,6 @@ async function speakWithTTS(
       utter.pitch = 0.8;
       utter.volume = 1;
 
-      // Wait for voices to load (some browsers load async)
       const getVoices = (): Promise<SpeechSynthesisVoice[]> =>
         new Promise((resolve) => {
           const voices = window.speechSynthesis.getVoices();
@@ -80,25 +85,14 @@ async function speakWithTTS(
 
       const voices = await getVoices();
       const femalePattern = /female|woman|girl|zira|hazel|susan|kate|fiona|moira|samantha|karen|tessa|victoria|alice|sarah|jessica|lily|matilda|siri.*female/i;
-
-      // Priority 1: Exact British male voices by name
       const preferred =
         voices.find((v) => /george/i.test(v.name) && v.lang.startsWith("en-GB")) ||
         voices.find((v) => /daniel/i.test(v.name) && v.lang.startsWith("en-GB")) ||
-        voices.find((v) => /james/i.test(v.name) && v.lang.startsWith("en-GB")) ||
-        voices.find((v) => /google uk english male/i.test(v.name)) ||
-        // Priority 2: Any en-GB voice that's not female
         voices.find((v) => v.lang.startsWith("en-GB") && !femalePattern.test(v.name)) ||
-        // Priority 3: Any English male-sounding voice
-        voices.find((v) => v.lang.startsWith("en") && /male|david|mark|alex|tom|oliver|arthur/i.test(v.name) && !femalePattern.test(v.name)) ||
-        // Priority 4: Any English voice that's not female
         voices.find((v) => v.lang.startsWith("en") && !femalePattern.test(v.name)) ||
         voices[0];
 
-      if (preferred) {
-        console.log("Jarvis fallback voice:", preferred.name, preferred.lang);
-        utter.voice = preferred;
-      }
+      if (preferred) utter.voice = preferred;
       onStart();
       utter.onend = onEnd;
       utter.onerror = () => onEnd();
