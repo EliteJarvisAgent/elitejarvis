@@ -240,10 +240,10 @@ export function ConversationFeed() {
         </div>
       )}
 
-      {/* Transcript — fixed at bottom, scrolls independently */}
+      {/* Transcript — scrolls independently */}
       <div
         ref={feedRef}
-        className="w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-2 scrollbar-thin"
+        className="flex-1 min-h-0 w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-2 scrollbar-thin"
       >
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
