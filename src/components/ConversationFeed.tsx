@@ -213,8 +213,8 @@ export function ConversationFeed() {
 
   return (
     <div className="relative h-full w-full flex flex-col">
-      {/* Orb — always centered in the full area */}
-      <div className="absolute inset-0 flex items-center justify-center px-4 pointer-events-none">
+      {/* Orb — positioned in upper area */}
+      <div className="absolute inset-0 flex items-start justify-center pt-4 sm:pt-8 px-4 pointer-events-none">
         <div className="pointer-events-auto w-full max-w-[500px]">
           <AgentNetwork
             onTranscript={doSend}
