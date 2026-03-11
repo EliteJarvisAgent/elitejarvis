@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Lock, Activity, Eye, EyeOff } from "lucide-react";
 
 const CORRECT_PASSWORD = "!CuUcm3~~";
-const STORAGE_KEY = "jarvis-auth";
+const STORAGE_KEY = "jarvis-auth-v2";
 
 export function PasswordGate({ children }: { children: React.ReactNode }) {
   const [authenticated, setAuthenticated] = useState(false);
