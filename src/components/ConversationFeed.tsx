@@ -229,8 +229,6 @@ export function ConversationFeed() {
         </div>
       </div>
 
-      {/* Spacer pushes transcript to bottom */}
-      <div className="flex-1 min-h-0" />
 
       {voiceNotice && (
         <div className="w-full px-3 pb-2 relative z-10">
