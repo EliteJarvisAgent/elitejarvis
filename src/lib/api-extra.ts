@@ -1,5 +1,5 @@
 // Backend API for templates, recurring schedules, activity, and pre-instructions
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase-safe-client";
 
 // Task Templates
 export async function fetchTemplates() {
