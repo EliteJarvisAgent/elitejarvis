@@ -1,0 +1,1 @@
+UPDATE public.agents SET image_url = 'https://blpkggmfpxrjvcoclssq.supabase.co/storage/v1/object/public/agent-images/jarvis.png' WHERE name = 'Jarvis';
