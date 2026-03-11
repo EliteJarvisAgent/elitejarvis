@@ -5,6 +5,13 @@
 @tailwind utilities;
 
 @layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
   :root {
     --background: 0 0% 98%;
     --foreground: 222 15% 12%;
@@ -131,6 +138,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    overscroll-behavior: none;
   }
 }
 
