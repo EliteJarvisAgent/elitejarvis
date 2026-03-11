@@ -212,10 +212,10 @@ export function ConversationFeed() {
   }, [doSend, manualText]);
 
   return (
-    <div className="relative h-full w-full flex flex-col">
-      {/* Orb — positioned in upper area */}
-      <div className="absolute inset-0 flex items-start justify-center pt-4 sm:pt-8 px-4 pointer-events-none">
-        <div className="pointer-events-auto w-full max-w-[500px]">
+    <div className="h-full w-full flex flex-col overflow-hidden">
+      {/* Orb — positioned at top */}
+      <div className="flex-shrink-0 flex items-start justify-center pt-4 sm:pt-8 px-4">
+        <div className="w-full max-w-[500px]">
           <AgentNetwork
             onTranscript={doSend}
             isSpeaking={isSpeaking}
@@ -230,7 +230,7 @@ export function ConversationFeed() {
       </div>
 
       {/* Spacer pushes transcript to bottom */}
-      <div className="flex-1" />
+      <div className="flex-1 min-h-0" />
 
       {voiceNotice && (
         <div className="w-full px-3 pb-2 relative z-10">
@@ -243,8 +243,7 @@ export function ConversationFeed() {
       {/* Transcript — fixed at bottom, scrolls independently */}
       <div
         ref={feedRef}
-        className="relative z-10 w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-2 scrollbar-thin"
-        style={{ maxHeight: "35%", minHeight: messages.length > 0 || isProcessing || isListening || !!liveTranscript ? "80px" : "56px" }}
+        className="w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-2 scrollbar-thin"
       >
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
