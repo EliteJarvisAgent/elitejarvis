@@ -1,25 +1,25 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { ArrowLeft, Calendar, Clock, User2, ChevronDown, Trash2, Archive } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Calendar, Clock, ChevronDown, ChevronUp, Trash2, Archive, Terminal, Copy, Check, CircleDot } from "lucide-react";
 import { agents } from "@/data/agents";
-import { statusColumns, type Task, type TaskStatus, type TaskPriority } from "@/data/tasks";
+import { statusColumns, type Task, type TaskStatus } from "@/data/tasks";
 import { useTasks } from "@/hooks/use-tasks";
 import { fetchTaskActivity, logTaskActivity } from "@/lib/api-extra";
 
-const statusStyles: Record<string, { bg: string; text: string }> = {
-  backlog: { bg: "bg-secondary", text: "text-muted-foreground" },
-  todo: { bg: "bg-primary/10", text: "text-primary" },
-  "in-progress": { bg: "bg-warning/10", text: "text-warning" },
-  review: { bg: "bg-info/10", text: "text-info" },
-  done: { bg: "bg-success/10", text: "text-success" },
+const statusStyles: Record<string, { bg: string; text: string; dot: string }> = {
+  backlog: { bg: "bg-secondary", text: "text-muted-foreground", dot: "bg-muted-foreground" },
+  todo: { bg: "bg-primary/10", text: "text-primary", dot: "bg-primary" },
+  "in-progress": { bg: "bg-warning/10", text: "text-warning", dot: "bg-warning" },
+  review: { bg: "bg-info/10", text: "text-info", dot: "bg-info" },
+  done: { bg: "bg-success/10", text: "text-success", dot: "bg-success" },
 };
 
-const activityIcons: Record<string, string> = {
-  created: "🔵",
-  status_changed: "🟠",
-  assigned: "👤",
-  completed: "✅",
+const activityIcons: Record<string, { color: string; icon: string }> = {
+  created: { color: "text-primary", icon: "●" },
+  status_changed: { color: "text-warning", icon: "◉" },
+  assigned: { color: "text-info", icon: "👤" },
+  completed: { color: "text-success", icon: "✓" },
 };
 
 export default function TaskDetailPage() {
@@ -28,6 +28,8 @@ export default function TaskDetailPage() {
   const { tasks, updateTask, deleteTask } = useTasks();
   const [activity, setActivity] = useState<any[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const task = tasks.find(t => t.id === taskId);
 
@@ -68,6 +70,19 @@ export default function TaskDetailPage() {
     navigate("/tasks");
   };
 
+  const handleArchive = () => {
+    updateTask(task.id, { status: "done" as TaskStatus });
+    navigate("/tasks");
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString("en-US", { weekday: "short", month: "numeric", day: "numeric" }) +
+        " " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
+    } catch { return dateStr; }
+  };
+
   const timeAgo = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -76,6 +91,21 @@ export default function TaskDetailPage() {
     if (hrs < 24) return `${hrs}h ago`;
     return `${Math.floor(hrs / 24)}d ago`;
   };
+
+  // Build mock execution logs from activity
+  const executionLogs = activity.map(a => {
+    const ts = new Date(a.created_at).toISOString().replace("T", " ").slice(0, 19);
+    return `[${ts}] ${a.action.toUpperCase()}\n${a.details || "No details"}`;
+  }).join("\n\n") || `[${task.createdAt}] CREATED\n${task.title}\n\n${task.description}`;
+
+  const handleCopyLogs = () => {
+    navigator.clipboard.writeText(executionLogs);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Find completed activity for "Completed" timestamp
+  const completedEntry = activity.find(a => a.action === "completed" || (a.action === "status_changed" && a.details?.toLowerCase().includes("done")));
 
   return (
     <div className="h-full overflow-y-auto">
@@ -98,12 +128,13 @@ export default function TaskDetailPage() {
             )}
 
             {/* Status dropdown */}
-            <div>
-              <div className="relative">
+            <div className="relative">
+              <div className="flex items-center gap-2">
+                <div className={`h-2.5 w-2.5 rounded-full ${ss.dot}`} />
                 <select
                   value={task.status}
                   onChange={e => handleStatusChange(e.target.value as TaskStatus)}
-                  className={`w-full appearance-none ${ss.bg} ${ss.text} border border-border rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none cursor-pointer`}
+                  className={`flex-1 appearance-none ${ss.bg} ${ss.text} border border-border rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none cursor-pointer`}
                 >
                   {statusColumns.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                 </select>
@@ -111,33 +142,76 @@ export default function TaskDetailPage() {
               </div>
             </div>
 
-            {/* Assignee */}
+            {/* Assignee with avatar */}
             <div>
               <label className="text-xs text-muted-foreground block mb-1.5">Assigned To</label>
-              <div className="relative">
-                <select
-                  value={task.assigneeId || ""}
-                  onChange={e => handleAssigneeChange(e.target.value)}
-                  className="w-full appearance-none bg-card border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none cursor-pointer"
-                >
-                  <option value="">Unassigned</option>
-                  {agents.map(a => <option key={a.id} value={a.id}>{a.name} — {a.role}</option>)}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-muted-foreground" />
+              <div className="relative flex items-center gap-3 bg-card border border-border rounded-xl px-3 py-2">
+                {agent ? (
+                  <img src={agent.image} alt={agent.name} className="h-9 w-9 rounded-lg object-cover shrink-0" />
+                ) : (
+                  <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                    <span className="text-xs text-muted-foreground">?</span>
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <select
+                    value={task.assigneeId || ""}
+                    onChange={e => handleAssigneeChange(e.target.value)}
+                    className="w-full appearance-none bg-transparent text-sm font-medium text-foreground focus:outline-none cursor-pointer"
+                  >
+                    <option value="">Unassigned</option>
+                    {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                  {agent && <p className="text-xs text-muted-foreground -mt-0.5">{agent.role}</p>}
+                </div>
+                <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
               </div>
             </div>
 
             {/* Meta info */}
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                <span>Created</span>
+            <div className="space-y-4 text-sm">
+              {/* Scheduled For */}
+              <div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>Scheduled For</span>
+                </div>
+                <p className="text-foreground font-medium ml-6 mt-0.5">
+                  {task.createdAt ? formatDate(task.createdAt) : "—"}
+                </p>
               </div>
-              <p className="text-foreground font-medium ml-6">{task.createdAt}</p>
+
+              {/* Created */}
+              <div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  <span>Created</span>
+                </div>
+                <p className="text-foreground font-medium ml-6 mt-0.5">
+                  {formatDate(task.createdAt)}
+                </p>
+              </div>
+
+              {/* Completed */}
+              {(task.status === "done" || completedEntry) && (
+                <div>
+                  <div className="flex items-center gap-2 text-success">
+                    <Check className="h-4 w-4" />
+                    <span>Completed</span>
+                  </div>
+                  <p className="text-success font-medium ml-6 mt-0.5">
+                    {completedEntry ? formatDate(completedEntry.created_at) : formatDate(new Date().toISOString())}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Actions */}
             <div className="space-y-2 pt-2 border-t border-border">
+              <button onClick={handleArchive} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Archive className="h-4 w-4" />
+                Archive task
+              </button>
               <button onClick={handleDelete} className="flex items-center gap-2 text-sm text-destructive/80 hover:text-destructive transition-colors">
                 <Trash2 className="h-4 w-4" />
                 Delete task
@@ -145,17 +219,23 @@ export default function TaskDetailPage() {
             </div>
           </motion.div>
 
-          {/* Right column — Details & Activity */}
+          {/* Right column — Details & Activity & Logs */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            {/* Title & Description */}
+            {/* Title & scheduled date */}
             <div>
               <h1 className="text-2xl font-semibold text-foreground">{task.title}</h1>
-              {task.description && (
-                <div className="mt-4 p-4 bg-card border border-border rounded-xl text-sm text-foreground/80 leading-relaxed">
-                  {task.description}
-                </div>
-              )}
+              <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                <Calendar className="h-3.5 w-3.5" />
+                <span>{formatDate(task.createdAt)}</span>
+              </div>
             </div>
+
+            {/* Description */}
+            {task.description && (
+              <div className="p-4 bg-card border border-border rounded-xl text-sm text-foreground/80 leading-relaxed">
+                {task.description}
+              </div>
+            )}
 
             {/* Activity Log */}
             <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -169,20 +249,63 @@ export default function TaskDetailPage() {
                 ) : activity.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">No activity recorded yet</p>
                 ) : (
-                  <div className="space-y-4">
-                    {activity.map(item => (
-                      <div key={item.id} className="flex items-start gap-3">
-                        <span className="text-base mt-0.5">{activityIcons[item.action] || "⚪"}</span>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm font-medium text-foreground capitalize">{item.action.replace("_", " ")}</span>
-                          {item.details && <p className="text-sm text-muted-foreground">{item.details}</p>}
+                  <div className="space-y-5">
+                    {activity.map(item => {
+                      const icon = activityIcons[item.action] || { color: "text-muted-foreground", icon: "○" };
+                      return (
+                        <div key={item.id} className="flex items-start gap-3">
+                          <span className={`text-lg mt-0.5 ${icon.color} leading-none`}>{icon.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-semibold text-foreground capitalize">{item.action.replace("_", " ")}</span>
+                            {item.details && <p className="text-sm text-muted-foreground">{item.details}</p>}
+                          </div>
+                          <span className="text-xs text-muted-foreground shrink-0">{timeAgo(item.created_at)}</span>
                         </div>
-                        <span className="text-xs text-muted-foreground shrink-0">{timeAgo(item.created_at)}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Execution Logs */}
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
+              <button
+                onClick={() => setLogsOpen(!logsOpen)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-secondary/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Terminal className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Execution Logs</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={e => { e.stopPropagation(); handleCopyLogs(); }}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-2.5 py-1 transition-colors"
+                  >
+                    {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                  {logsOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                </div>
+              </button>
+              <AnimatePresence>
+                {logsOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4 border-t border-border">
+                      <pre className="mt-3 p-4 bg-secondary/50 rounded-xl text-xs font-mono text-foreground/80 whitespace-pre-wrap max-h-80 overflow-y-auto leading-relaxed">
+                        {executionLogs}
+                      </pre>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         </div>
