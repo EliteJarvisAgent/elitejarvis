@@ -229,8 +229,6 @@ export function ConversationFeed() {
         </div>
       </div>
 
-      {/* Spacer pushes transcript to bottom */}
-      <div className="flex-1 min-h-0" />
 
       {voiceNotice && (
         <div className="w-full px-3 pb-2 relative z-10">
@@ -240,10 +238,10 @@ export function ConversationFeed() {
         </div>
       )}
 
-      {/* Transcript — fixed at bottom, scrolls independently */}
+      {/* Transcript — scrolls independently */}
       <div
         ref={feedRef}
-        className="w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-2 scrollbar-thin"
+        className="flex-1 min-h-0 w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-2 scrollbar-thin"
       >
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
@@ -293,7 +291,7 @@ export function ConversationFeed() {
       </div>
 
       {/* Text input — always at very bottom */}
-      <div className="relative z-10 w-full px-3 sm:px-6 pb-3">
+      <div className="flex-shrink-0 w-full px-3 sm:px-6 pb-3">
         <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-2 py-2">
           <input
             value={manualText}
