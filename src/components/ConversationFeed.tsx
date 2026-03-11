@@ -243,8 +243,7 @@ export function ConversationFeed() {
       {/* Transcript — fixed at bottom, scrolls independently */}
       <div
         ref={feedRef}
-        className="relative z-10 w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-2 scrollbar-thin"
-        style={{ maxHeight: "35%", minHeight: messages.length > 0 || isProcessing || isListening || !!liveTranscript ? "80px" : "56px" }}
+        className="w-full overflow-y-auto px-3 sm:px-6 pt-2 pb-2 scrollbar-thin"
       >
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
