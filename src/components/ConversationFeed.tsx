@@ -291,7 +291,7 @@ export function ConversationFeed() {
       </div>
 
       {/* Text input — always at very bottom */}
-      <div className="relative z-10 w-full px-3 sm:px-6 pb-3">
+      <div className="flex-shrink-0 w-full px-3 sm:px-6 pb-3">
         <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-2 py-2">
           <input
             value={manualText}
