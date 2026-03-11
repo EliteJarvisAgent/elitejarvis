@@ -19,9 +19,9 @@ export function DashboardLayout() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="h-screen flex w-full overflow-hidden bg-background">
         <AppSidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex min-h-0 flex-col overflow-hidden">
           {/* Top bar with search */}
           <header className="h-14 flex items-center border-b border-border bg-card px-4 gap-4">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
