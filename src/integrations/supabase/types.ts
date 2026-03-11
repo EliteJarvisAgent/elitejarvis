@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      agents: {
+        Row: {
+          capabilities: string[]
+          color: string
+          created_at: string
+          description: string
+          id: string
+          image_url: string | null
+          name: string
+          role: string
+          sort_order: number
+          status: string
+          tasks_completed: number
+          uptime: string
+        }
+        Insert: {
+          capabilities?: string[]
+          color?: string
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          name: string
+          role?: string
+          sort_order?: number
+          status?: string
+          tasks_completed?: number
+          uptime?: string
+        }
+        Update: {
+          capabilities?: string[]
+          color?: string
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          name?: string
+          role?: string
+          sort_order?: number
+          status?: string
+          tasks_completed?: number
+          uptime?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           id: string
