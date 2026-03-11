@@ -1,5 +1,5 @@
 // API client — uses Lovable Cloud database directly
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase-safe-client";
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "blpkggmfpxrjvcoclssq";
 const API_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
