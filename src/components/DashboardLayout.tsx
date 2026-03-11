@@ -39,7 +39,7 @@ export function DashboardLayout() {
             </div>
           </header>
           <motion.main
-            className="flex-1 overflow-hidden"
+            className="flex-1 min-h-0 overflow-hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.2 }}

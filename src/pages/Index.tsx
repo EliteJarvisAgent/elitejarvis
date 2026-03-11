@@ -8,9 +8,9 @@ const Index = () => {
   const [showTasks, setShowTasks] = useState(false);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <TopBar />
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="relative flex flex-1 min-h-0 overflow-hidden">
         {/* Conversation Feed */}
         <div className="w-full lg:w-[60%] flex flex-col overflow-hidden">
           <ConversationFeed />
