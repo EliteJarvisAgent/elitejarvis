@@ -9,7 +9,7 @@ const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "blpkggmfpxrjvcoc
 const CLOUD_URL = `https://${PROJECT_ID}.supabase.co`;
 const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-const WEBHOOK_URL = "https://lovable-jarvis-bridge-btwfx40ot-jarvis-3869s-projects.vercel.app";
+const WEBHOOK_URL = "https://api.jarviselite.ai";
 
 async function askJarvis(history: ChatMsg[]): Promise<string> {
   try {
