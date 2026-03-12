@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { CheckCircle, Clock, AlertTriangle, Bell, Settings, Activity, ListTodo } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTasks } from "@/hooks/use-tasks";
+import { TaskQueue } from "@/components/TaskQueue";
 
 function useMetrics() {
   const { tasks } = useTasks();
