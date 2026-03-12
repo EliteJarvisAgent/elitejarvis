@@ -12,8 +12,15 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (stored === "true") setAuthenticated(true);
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const expiry = parseInt(stored, 10);
+      if (Date.now() < expiry) {
+        setAuthenticated(true);
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
