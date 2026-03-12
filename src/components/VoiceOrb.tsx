@@ -31,6 +31,10 @@ export function VoiceOrb({
   const emittedThisSessionRef = useRef(false);
 
   const [jarvisVolume, setJarvisVolume] = useState(0);
+  const wasSpeakingRef = useRef(false);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoRestartRef = useRef(false);
+
   useEffect(() => {
     if (!isSpeaking) {
       setJarvisVolume(0);
@@ -41,6 +45,21 @@ export function VoiceOrb({
     }, 80);
     return () => clearInterval(interval);
   }, [isSpeaking]);
+
+  // Auto-restart listening after Jarvis finishes speaking
+  useEffect(() => {
+    if (wasSpeakingRef.current && !isSpeaking) {
+      autoRestartRef.current = true;
+      // Small delay to let audio finish
+      const t = setTimeout(() => {
+        if (autoRestartRef.current) {
+          startListening();
+        }
+      }, 400);
+      return () => clearTimeout(t);
+    }
+    wasSpeakingRef.current = isSpeaking;
+  }, [isSpeaking, startListening]);
 
   const activeVolume = isListening ? volume : isSpeaking ? jarvisVolume : 0;
   const isActive = isListening || isSpeaking;
