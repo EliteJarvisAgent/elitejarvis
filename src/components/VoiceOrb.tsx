@@ -31,6 +31,11 @@ export function VoiceOrb({
   const emittedThisSessionRef = useRef(false);
 
   const [jarvisVolume, setJarvisVolume] = useState(0);
+  const wasSpeakingRef = useRef(false);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoRestartRef = useRef(false);
+  const manualStopRef = useRef(false);
+
   useEffect(() => {
     if (!isSpeaking) {
       setJarvisVolume(0);
@@ -44,6 +49,13 @@ export function VoiceOrb({
 
   const activeVolume = isListening ? volume : isSpeaking ? jarvisVolume : 0;
   const isActive = isListening || isSpeaking;
+
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  }, []);
 
   const stopAnalyser = useCallback(() => {
     cancelAnimationFrame(animFrameRef.current);
@@ -121,7 +133,19 @@ export function VoiceOrb({
     recognition.interimResults = true;
     recognition.lang = "en-US";
 
+    // Start 10-second silence timeout — resets on any speech result
+    clearSilenceTimer();
+    silenceTimerRef.current = setTimeout(() => {
+      recognition.stop();
+    }, 10000);
+
     recognition.onresult = (e: SpeechRecognitionEvent) => {
+      // Reset silence timer on any speech
+      clearSilenceTimer();
+      silenceTimerRef.current = setTimeout(() => {
+        recognition.stop();
+      }, 10000);
+
       let finalText = "";
       let interimText = "";
 
@@ -143,6 +167,7 @@ export function VoiceOrb({
     };
 
     recognition.onerror = (event: Event) => {
+      clearSilenceTimer();
       const errorEvent = event as Event & { error?: string };
       const reason = errorEvent.error
         ? `Voice recognition failed (${errorEvent.error}).`
@@ -154,6 +179,7 @@ export function VoiceOrb({
     };
 
     recognition.onend = () => {
+      clearSilenceTimer();
       if (!emittedThisSessionRef.current && pendingTranscriptRef.current.trim()) {
         emitTranscript(pendingTranscriptRef.current);
       }
@@ -169,6 +195,7 @@ export function VoiceOrb({
     setIsListening(true);
     onListeningChange?.(true);
   }, [
+    clearSilenceTimer,
     emitTranscript,
     isSpeaking,
     onInterrupt,
@@ -180,13 +207,36 @@ export function VoiceOrb({
   ]);
 
   const stopListening = useCallback(() => {
+    clearSilenceTimer();
+    manualStopRef.current = true;
+    autoRestartRef.current = false;
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     setIsListening(false);
     onListeningChange?.(false);
     onTranscriptPreview?.("");
     stopAnalyser();
-  }, [onListeningChange, onTranscriptPreview, stopAnalyser]);
+  }, [clearSilenceTimer, onListeningChange, onTranscriptPreview, stopAnalyser]);
+
+  // Auto-restart listening after Jarvis finishes speaking
+  useEffect(() => {
+    if (wasSpeakingRef.current && !isSpeaking) {
+      // Only auto-restart if user didn't manually stop
+      if (!manualStopRef.current) {
+        autoRestartRef.current = true;
+        const t = setTimeout(() => {
+          if (autoRestartRef.current) {
+            startListening();
+          }
+        }, 400);
+        return () => clearTimeout(t);
+      }
+    }
+    if (isSpeaking) {
+      manualStopRef.current = false;
+    }
+    wasSpeakingRef.current = isSpeaking;
+  }, [isSpeaking, startListening]);
 
   const handleOrbClick = useCallback(() => {
     onUserInteraction?.();
@@ -198,15 +248,17 @@ export function VoiceOrb({
       stopListening();
       return;
     }
+    manualStopRef.current = false;
     startListening();
   }, [isListening, isSpeaking, onInterrupt, onUserInteraction, startListening, stopListening]);
 
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop();
+      clearSilenceTimer();
       stopAnalyser();
     };
-  }, [stopAnalyser]);
+  }, [clearSilenceTimer, stopAnalyser]);
 
   const orbSize = 160;
   const ringCount = 5;
