@@ -1,4 +1,4 @@
-import { CheckCircle, Clock, AlertTriangle, Bell, Settings, Activity } from "lucide-react";
+import { CheckCircle, Clock, AlertTriangle, Bell, Settings, Activity, ListTodo } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTasks } from "@/hooks/use-tasks";
 
