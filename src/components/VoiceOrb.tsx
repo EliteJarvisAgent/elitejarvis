@@ -255,9 +255,10 @@ export function VoiceOrb({
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop();
+      clearSilenceTimer();
       stopAnalyser();
     };
-  }, [stopAnalyser]);
+  }, [clearSilenceTimer, stopAnalyser]);
 
   const orbSize = 160;
   const ringCount = 5;
