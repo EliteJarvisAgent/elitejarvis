@@ -129,21 +129,22 @@ export function VoiceOrb({
     onTranscriptPreview?.("");
 
     const recognition = new SR();
-    recognition.continuous = false;
+    // Use continuous mode for better mobile compatibility
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "en-US";
 
     // Start 10-second silence timeout — resets on any speech result
     clearSilenceTimer();
     silenceTimerRef.current = setTimeout(() => {
-      recognition.stop();
+      recognitionRef.current?.stop();
     }, 10000);
 
     recognition.onresult = (e: SpeechRecognitionEvent) => {
       // Reset silence timer on any speech
       clearSilenceTimer();
       silenceTimerRef.current = setTimeout(() => {
-        recognition.stop();
+        recognitionRef.current?.stop();
       }, 10000);
 
       let finalText = "";
@@ -163,12 +164,21 @@ export function VoiceOrb({
       pendingTranscriptRef.current = finalChunk || interimChunk || pendingTranscriptRef.current;
       onTranscriptPreview?.(pendingTranscriptRef.current);
 
-      if (finalChunk) emitTranscript(finalChunk);
+      if (finalChunk) {
+        emitTranscript(finalChunk);
+        // After emitting, stop recognition (will auto-restart via effect if needed)
+        recognitionRef.current?.stop();
+      }
     };
 
     recognition.onerror = (event: Event) => {
       clearSilenceTimer();
       const errorEvent = event as Event & { error?: string };
+      // On mobile, "no-speech" and "aborted" are common non-fatal errors
+      if (errorEvent.error === "no-speech" || errorEvent.error === "aborted") {
+        // Silently handle — onend will fire and we can auto-restart if needed
+        return;
+      }
       const reason = errorEvent.error
         ? `Voice recognition failed (${errorEvent.error}).`
         : "Voice recognition failed. Please try again.";
@@ -190,7 +200,14 @@ export function VoiceOrb({
       stopAnalyser();
     };
 
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (e) {
+      console.warn("Recognition start failed:", e);
+      onVoiceUnavailable?.("Could not start voice recognition. Please try again.");
+      stopAnalyser();
+      return;
+    }
     recognitionRef.current = recognition;
     setIsListening(true);
     onListeningChange?.(true);
