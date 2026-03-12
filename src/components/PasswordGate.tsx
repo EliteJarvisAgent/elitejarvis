@@ -26,7 +26,8 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (password === CORRECT_PASSWORD) {
-      sessionStorage.setItem(STORAGE_KEY, "true");
+      const expiry = Date.now() + 14 * 24 * 60 * 60 * 1000; // 14 days
+      localStorage.setItem(STORAGE_KEY, expiry.toString());
       setAuthenticated(true);
     } else {
       setError(true);
