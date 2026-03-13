@@ -28,13 +28,14 @@ serve(async (req) => {
     const rawBody = await req.text();
     const parsedBody = rawBody ? JSON.parse(rawBody) : {};
     
-    // Support both { messages: [...] } and { message: "string" } formats
     let messages: { role: string; content: string }[] = [];
     if (Array.isArray(parsedBody.messages)) {
       messages = parsedBody.messages;
     } else if (typeof parsedBody.message === "string") {
       messages = [{ role: "user", content: parsedBody.message }];
     }
+
+    const stream = parsedBody.stream !== false; // default to streaming
 
     const API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
@@ -58,6 +59,7 @@ serve(async (req) => {
           ...messages,
         ],
         max_tokens: 8192,
+        stream,
       }),
     });
 
@@ -70,6 +72,19 @@ serve(async (req) => {
       );
     }
 
+    // If streaming, forward the SSE stream directly
+    if (stream && response.headers.get("content-type")?.includes("text/event-stream") && response.body) {
+      return new Response(response.body, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
+      });
+    }
+
+    // Non-streaming fallback
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content || "I'm having difficulty processing that sir.";
 
