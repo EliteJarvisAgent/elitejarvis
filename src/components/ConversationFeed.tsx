@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
 import { AgentNetwork } from "./AgentNetwork";
 import { useMessages } from "@/hooks/use-messages";
