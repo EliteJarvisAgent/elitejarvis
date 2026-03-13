@@ -294,14 +294,14 @@ export function ConversationFeed() {
               className={`flex gap-2 mb-2 ${msg.sender === "matthew" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[90%] sm:max-w-[85%] rounded-2xl px-3 sm:px-4 py-2 text-sm ${
+                className={`min-w-0 max-w-[90%] sm:max-w-[85%] overflow-visible rounded-2xl px-3 sm:px-4 py-2 text-sm ${
                   msg.sender === "jarvis"
                     ? "glass-panel-elevated rounded-tl-md text-foreground"
                     : "bg-primary/12 border border-primary/20 rounded-tr-md text-foreground"
                 }`}
               >
-                <div className="leading-relaxed prose prose-sm prose-invert max-w-none">
-                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                <div className="leading-relaxed max-w-none whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                  <ReactMarkdown>{msg.text ?? ""}</ReactMarkdown>
                 </div>
                 <span className="text-[9px] text-muted-foreground/50 font-mono-display mt-1 block text-right">
                   {msg.timestamp}
