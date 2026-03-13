@@ -150,7 +150,7 @@ function TaskCard({
   onUpdateStatus: (status: string) => void;
   onDelete: () => void;
 }) {
-  const dragControls = useDragControls();
+  const wasDragged = useRef(false);
   const sc = statusConfig[task.status];
   const pc = priorityConfig[task.priority];
   const StatusIcon = sc.icon;
@@ -159,30 +159,21 @@ function TaskCard({
   return (
     <Reorder.Item
       value={task}
-      dragListener={false}
-      dragControls={dragControls}
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
       transition={{ delay: index * 0.04, duration: 0.25 }}
-      className={`glass-panel-elevated rounded-xl p-4 card-hover group ${
+      className={`glass-panel-elevated rounded-xl p-4 cursor-grab active:cursor-grabbing card-hover group ${
         isActive ? "animate-pulse-glow" : ""
       }`}
+      whileDrag={{ scale: 1.03, boxShadow: "0 12px 40px -8px hsl(185 90% 48% / 0.2)" }}
+      onDragStart={() => { wasDragged.current = true; }}
+      onDragEnd={() => { setTimeout(() => { wasDragged.current = false; }, 100); }}
+      onClick={() => { if (!wasDragged.current) onNavigate(); }}
     >
       {/* Top row */}
       <div className="flex items-start justify-between gap-3">
-        {/* Drag handle */}
-        <div
-          className="shrink-0 cursor-grab active:cursor-grabbing touch-none pt-1"
-          onPointerDown={(e) => dragControls.start(e)}
-        >
-          <GripVertical className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
-        </div>
-
-        <div
-          className="flex items-start gap-3 min-w-0 flex-1 cursor-pointer"
-          onClick={onNavigate}
-        >
+        <div className="flex items-start gap-3 min-w-0 flex-1">
           <div className={`h-2.5 w-2.5 rounded-full shrink-0 mt-1.5 ${pc.color} ${sc.dotClass}`} />
           <div className="min-w-0">
             <span className="text-sm font-medium text-foreground leading-snug block hover:text-primary transition-colors">
@@ -222,7 +213,7 @@ function TaskCard({
       </div>
 
       {/* Bottom row */}
-      <div className="flex items-center gap-2.5 mt-3 ml-10">
+      <div className="flex items-center gap-2.5 mt-3 ml-5.5">
         <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-2.5 py-1 rounded-lg border ${sc.className}`}>
           <StatusIcon className={`h-3 w-3 ${isActive ? "animate-spin" : ""}`} />
           {sc.label}
