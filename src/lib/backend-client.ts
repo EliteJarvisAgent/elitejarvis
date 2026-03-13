@@ -51,15 +51,6 @@ export const api = {
     return res.json();
   },
 
-  googleTTS: async (text: string) => {
-    const res = await fetch(`${CLOUD_URL}/functions/v1/google-tts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", apikey: API_KEY, Authorization: `Bearer ${API_KEY}` },
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) throw new Error(`TTS error: ${res.status}`);
-    return res.json();
-  },
 };
 
 export const API_BASE_URL = CLOUD_URL;
