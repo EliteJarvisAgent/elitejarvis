@@ -367,19 +367,6 @@ export function ConversationFeed() {
           />
         </div>
       </div>
-// Simulate typewriter for non-streaming responses
-async function simulateTypewriter(text: string, onChunk: (fullText: string) => void): Promise<void> {
-  const words = text.split(/(\s+)/); // split keeping whitespace
-  let accumulated = "";
-  for (const word of words) {
-    accumulated += word;
-    onChunk(accumulated);
-    // Small delay per word chunk for typewriter feel
-    if (word.trim()) {
-      await new Promise((r) => setTimeout(r, 18));
-    }
-  }
-}
 
 
       {voiceNotice && (
