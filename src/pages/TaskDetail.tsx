@@ -161,30 +161,44 @@ export default function TaskDetailPage() {
               </SelectContent>
             </Select>
 
-            {/* Assignee with avatar */}
+            {/* Assignee */}
             <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Assigned To</label>
-              <div className="relative flex items-center gap-3 bg-card border border-border rounded-xl px-3 py-2">
-                {agent ? (
-                  <img src={agent.image} alt={agent.name} className="h-9 w-9 rounded-lg object-cover shrink-0" />
-                ) : (
-                  <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                    <span className="text-xs text-muted-foreground">?</span>
+              <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-1.5">Assigned To</label>
+              <Select value={task.assigneeId || "_unassigned"} onValueChange={(v) => handleAssigneeChange(v === "_unassigned" ? "" : v)}>
+                <SelectTrigger className="w-full border-border/60 rounded-xl bg-card">
+                  <div className="flex items-center gap-3">
+                    {agent ? (
+                      <img src={agent.image} alt={agent.name} className="h-7 w-7 rounded-lg object-cover shrink-0" />
+                    ) : (
+                      <div className="h-7 w-7 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                        <span className="text-[10px] text-muted-foreground">?</span>
+                      </div>
+                    )}
+                    <div className="text-left">
+                      <SelectValue />
+                      {agent && <p className="text-[10px] text-muted-foreground -mt-0.5">{agent.role}</p>}
+                    </div>
                   </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <select
-                    value={task.assigneeId || ""}
-                    onChange={e => handleAssigneeChange(e.target.value)}
-                    className="w-full appearance-none bg-transparent text-sm font-medium text-foreground focus:outline-none cursor-pointer"
-                  >
-                    <option value="">Unassigned</option>
-                    {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                  {agent && <p className="text-xs text-muted-foreground -mt-0.5">{agent.role}</p>}
-                </div>
-                <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-              </div>
+                </SelectTrigger>
+                <SelectContent className="glass-panel-elevated border-border/60">
+                  <SelectItem value="_unassigned" className="cursor-pointer focus:bg-primary/10 focus:text-primary">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-lg bg-secondary flex items-center justify-center">
+                        <span className="text-[10px] text-muted-foreground">?</span>
+                      </div>
+                      Unassigned
+                    </div>
+                  </SelectItem>
+                  {agents.map(a => (
+                    <SelectItem key={a.id} value={a.id} className="cursor-pointer focus:bg-primary/10 focus:text-primary">
+                      <div className="flex items-center gap-2">
+                        <img src={a.image} alt={a.name} className="h-6 w-6 rounded-lg object-cover" />
+                        {a.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Meta info */}
