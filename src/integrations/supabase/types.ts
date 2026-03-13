@@ -248,6 +248,36 @@ export type Database = {
           },
         ]
       }
+      trusted_devices: {
+        Row: {
+          created_at: string
+          device_token: string
+          id: string
+          ip_address: string | null
+          is_revoked: boolean
+          label: string
+          last_seen_at: string
+        }
+        Insert: {
+          created_at?: string
+          device_token: string
+          id?: string
+          ip_address?: string | null
+          is_revoked?: boolean
+          label?: string
+          last_seen_at?: string
+        }
+        Update: {
+          created_at?: string
+          device_token?: string
+          id?: string
+          ip_address?: string | null
+          is_revoked?: boolean
+          label?: string
+          last_seen_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
