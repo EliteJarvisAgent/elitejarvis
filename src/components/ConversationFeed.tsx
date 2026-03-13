@@ -387,6 +387,8 @@ export function ConversationFeed() {
           setStreamingText(partialText);
         }, controller.signal);
 
+        abortControllerRef.current = null;
+
         // Streaming complete — clear streaming state and persist final message
         setStreamingText(null);
 
@@ -407,6 +409,11 @@ export function ConversationFeed() {
           currentAudioRef
         );
       } catch (err) {
+        abortControllerRef.current = null;
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setIsProcessing(false);
+          return;
+        }
         console.error("Jarvis error:", err);
         setIsProcessing(false);
         setStreamingText(null);
