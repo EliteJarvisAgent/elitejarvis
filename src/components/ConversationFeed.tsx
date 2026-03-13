@@ -49,12 +49,12 @@ async function askJarvisStream(
       return await readSSEStream(res.body, onChunk);
     }
 
-    // Fallback: non-streaming JSON response
+    // Fallback: non-streaming JSON response — simulate typewriter
     const text = await res.text();
     const data = JSON.parse(text);
     const reply = data.response || data.reply || data.message || (typeof data === "string" ? data : "");
     if (reply) {
-      onChunk(reply);
+      await simulateTypewriter(reply, onChunk);
       return reply;
     }
     console.warn("Unexpected Jarvis response shape:", data);
