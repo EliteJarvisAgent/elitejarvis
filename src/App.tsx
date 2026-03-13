@@ -29,6 +29,7 @@ const App = () => (
                 <Route path="/agents" element={<AgentsPage />} />
                 <Route path="/tasks" element={<TasksPage />} />
                 <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
+                <Route path="/devices" element={<DevicesPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

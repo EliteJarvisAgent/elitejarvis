@@ -18,6 +18,7 @@ const items = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Agents", url: "/agents", icon: Users },
   { title: "Tasks", url: "/tasks", icon: LayoutDashboard },
+  { title: "Devices", url: "/devices", icon: Shield },
 ];
 
 export function AppSidebar() {
