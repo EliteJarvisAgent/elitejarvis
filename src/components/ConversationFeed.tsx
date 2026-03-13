@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
 import { AgentNetwork } from "./AgentNetwork";
 import { useMessages } from "@/hooks/use-messages";
@@ -299,7 +300,9 @@ export function ConversationFeed() {
                     : "bg-primary/12 border border-primary/20 rounded-tr-md text-foreground"
                 }`}
               >
-                <p className="leading-relaxed">{msg.text}</p>
+                <div className="leading-relaxed prose prose-sm prose-invert max-w-none">
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                </div>
                 <span className="text-[9px] text-muted-foreground/50 font-mono-display mt-1 block text-right">
                   {msg.timestamp}
                 </span>
