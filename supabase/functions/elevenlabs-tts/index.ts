@@ -32,6 +32,15 @@ serve(async (req) => {
       });
     }
 
+    // Add natural Jarvis-style pauses to the text
+    // Insert brief pauses after periods, commas, and before "sir"/"ma'am"
+    let processedText = text
+      .replace(/\.\s+/g, ".\n... \n")          // Longer pause after sentences
+      .replace(/,\s+/g, ", ... ")               // Brief pause after commas
+      .replace(/:\s+/g, ": ... ")               // Pause after colons
+      .replace(/\b(sir|ma'am|Sir|Ma'am)\b/g, "... $1")  // Dramatic pause before "sir"
+      .replace(/\n{3,}/g, "\n\n");              // Clean up excessive breaks
+
     // George voice — refined, calm British male. Closest to Jarvis.
     const selectedVoice = voiceId || "JBFqnCBsd6RMkjVDRZzb";
 
@@ -44,14 +53,14 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          text,
+          text: processedText,
           model_id: "eleven_multilingual_v2",
           voice_settings: {
-            stability: 0.85,
-            similarity_boost: 0.9,
-            style: 0.15,
+            stability: 0.7,           // Slightly more expressive
+            similarity_boost: 0.85,
+            style: 0.25,              // More character
             use_speaker_boost: true,
-            speed: 0.95,
+            speed: 0.88,              // Slower, more deliberate — like Jarvis
           },
         }),
       }
