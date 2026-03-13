@@ -20,6 +20,7 @@ interface DisplayTask {
   status: DisplayStatus;
   priority: "high" | "medium" | "low";
   assignee: string;
+  assigneeImage: string | null;
 }
 
 function mapStatus(s: string): DisplayStatus {
