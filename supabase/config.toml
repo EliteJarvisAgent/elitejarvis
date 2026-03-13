@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.jarvis-chat]
 verify_jwt = false
+
+[functions.device-check]
+verify_jwt = false

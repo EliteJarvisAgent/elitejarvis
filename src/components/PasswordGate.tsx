@@ -1,39 +1,130 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Lock, Activity, Eye, EyeOff } from "lucide-react";
+import { Lock, Activity, Eye, EyeOff, Shield, Loader2 } from "lucide-react";
 
 const CORRECT_PASSWORD = "!CuUcm3~~";
 const STORAGE_KEY = "jarvis-auth-v2";
+const DEVICE_TOKEN_KEY = "jarvis-device-token";
+
+const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "blpkggmfpxrjvcoclssq";
+const API_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const CLOUD_URL = `https://${PROJECT_ID}.supabase.co`;
+
+function getOrCreateDeviceToken(): string {
+  let token = localStorage.getItem(DEVICE_TOKEN_KEY);
+  if (!token) {
+    token = crypto.randomUUID();
+    localStorage.setItem(DEVICE_TOKEN_KEY, token);
+  }
+  return token;
+}
+
+function getDeviceLabel(): string {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad/.test(ua)) return "iOS Device";
+  if (/Android/.test(ua)) return "Android Device";
+  if (/Mac/.test(ua)) return "Mac";
+  if (/Windows/.test(ua)) return "Windows PC";
+  if (/Linux/.test(ua)) return "Linux";
+  return "Unknown Device";
+}
+
+async function callDeviceCheck(action: string, deviceToken: string, label?: string) {
+  const res = await fetch(`${CLOUD_URL}/functions/v1/device-check`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: API_KEY,
+      Authorization: `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify({ action, device_token: deviceToken, label }),
+  });
+  if (!res.ok) throw new Error(`Device check failed: ${res.status}`);
+  return res.json();
+}
 
 export function PasswordGate({ children }: { children: React.ReactNode }) {
   const [authenticated, setAuthenticated] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("Verifying device…");
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const expiry = parseInt(stored, 10);
-      if (Date.now() < expiry) {
-        setAuthenticated(true);
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    }
+    verifyDevice();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const verifyDevice = async () => {
+    try {
+      const deviceToken = getOrCreateDeviceToken();
+      const result = await callDeviceCheck("verify", deviceToken);
+
+      if (result.allowed) {
+        // Device or IP recognized — grant access
+        const expiry = Date.now() + 14 * 24 * 60 * 60 * 1000;
+        localStorage.setItem(STORAGE_KEY, expiry.toString());
+        setAuthenticated(true);
+      } else {
+        // Check local expiry as fallback
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored && Date.now() < parseInt(stored, 10)) {
+          // Local session still valid, re-register this device
+          await callDeviceCheck("register", deviceToken, getDeviceLabel());
+          setAuthenticated(true);
+        }
+      }
+    } catch {
+      // Network error — fall back to local auth check
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored && Date.now() < parseInt(stored, 10)) {
+        setAuthenticated(true);
+      }
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password === CORRECT_PASSWORD) {
-      const expiry = Date.now() + 14 * 24 * 60 * 60 * 1000; // 14 days
+      const expiry = Date.now() + 14 * 24 * 60 * 60 * 1000;
       localStorage.setItem(STORAGE_KEY, expiry.toString());
+
+      // Register this device as trusted
+      try {
+        const deviceToken = getOrCreateDeviceToken();
+        await callDeviceCheck("register", deviceToken, getDeviceLabel());
+      } catch {
+        // Registration failed but password was correct, still allow access
+      }
+
       setAuthenticated(true);
     } else {
       setError(true);
       setTimeout(() => setError(false), 1500);
     }
   };
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="h-14 w-14 rounded-2xl bg-primary/15 flex items-center justify-center border border-primary/25">
+            <Shield className="h-7 w-7 text-primary" />
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground text-sm font-mono">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {statusMessage}
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (authenticated) return <>{children}</>;
 
