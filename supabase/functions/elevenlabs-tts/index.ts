@@ -38,7 +38,6 @@ serve(async (req) => {
       .replace(/\.\s+/g, ".\n... \n")          // Longer pause after sentences
       .replace(/,\s+/g, ", ... ")               // Brief pause after commas
       .replace(/:\s+/g, ": ... ")               // Pause after colons
-      .replace(/\b(sir|ma'am|Sir|Ma'am)\b/g, "... $1")  // Dramatic pause before "sir"
       .replace(/\n{3,}/g, "\n\n");              // Clean up excessive breaks
 
     // George voice — refined, calm British male. Closest to Jarvis.
