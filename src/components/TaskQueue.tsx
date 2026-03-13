@@ -1,8 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { Clock, User2, MoreHorizontal, CheckCircle2, Loader2, AlertOctagon, Timer } from "lucide-react";
 import { useTasks } from "@/hooks/use-tasks";
 import { agents } from "@/data/agents";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { statusColumns, type TaskStatus } from "@/data/tasks";
 
 type DisplayStatus = "in-progress" | "pending" | "done" | "blocked";
 
