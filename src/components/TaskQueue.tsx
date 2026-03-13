@@ -69,7 +69,8 @@ const priorityConfig: Record<string, { color: string; label: string }> = {
 };
 
 export function TaskQueue() {
-  const { tasks: rawTasks } = useTasks();
+  const navigate = useNavigate();
+  const { tasks: rawTasks, updateTask, deleteTask } = useTasks();
   
   const displayTasks = useMemo<DisplayTask[]>(() => 
     rawTasks.map(t => ({
