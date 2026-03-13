@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Clock, User2, MoreHorizontal, CheckCircle2, Loader2, AlertOctagon, Timer } from "lucide-react";
 import { useTasks } from "@/hooks/use-tasks";
 import { agents } from "@/data/agents";
@@ -118,7 +118,7 @@ export function TaskQueue() {
 
       {/* Task List - Drag to reorder */}
       <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
-        <Reorder.Group axis="y" values={tasks} onReorder={setTasks} className="space-y-2.5">
+        <div className="space-y-2.5">
           <AnimatePresence>
             {tasks.map((task, i) => {
               const sc = statusConfig[task.status];
@@ -127,17 +127,15 @@ export function TaskQueue() {
               const isActive = task.status === "in-progress";
 
               return (
-                <Reorder.Item
+                <motion.div
                   key={task.id}
-                  value={task}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ delay: i * 0.04, duration: 0.25 }}
-                  className={`glass-panel-elevated rounded-xl p-4 cursor-grab active:cursor-grabbing card-hover group ${
+                  className={`glass-panel-elevated rounded-xl p-4 card-hover group ${
                     isActive ? "animate-pulse-glow" : ""
                   }`}
-                  whileDrag={{ scale: 1.03, boxShadow: "0 12px 40px -8px hsl(185 90% 48% / 0.2)" }}
                 >
                   {/* Top row */}
                   <div className="flex items-start justify-between gap-3">
@@ -197,11 +195,11 @@ export function TaskQueue() {
                       {pc.label}
                     </span>
                   </div>
-                </Reorder.Item>
+                </motion.div>
               );
             })}
           </AnimatePresence>
-        </Reorder.Group>
+        </div>
       </div>
     </div>
   );
