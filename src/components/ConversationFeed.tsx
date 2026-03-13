@@ -47,7 +47,7 @@ async function askJarvisStream(
   message: string,
   onChunk: (text: string) => void
 ): Promise<string> {
-  // Primary: use jarvis-chat edge function (Lovable AI gateway, high max_tokens)
+  // Primary: use jarvis-chat edge function with real SSE streaming
   try {
     const res = await fetch(JARVIS_CHAT_URL, {
       method: "POST",
@@ -56,10 +56,17 @@ async function askJarvisStream(
         apikey: CLOUD_KEY,
         Authorization: `Bearer ${CLOUD_KEY}`,
       },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, stream: true }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
+    const contentType = res.headers.get("content-type") || "";
+    // Real SSE stream from edge function
+    if (contentType.includes("text/event-stream") && res.body) {
+      return await readSSEStream(res.body, onChunk);
+    }
+
+    // Fallback: JSON response (non-streaming)
     const data = await res.json();
     const reply = data.reply || data.response || data.message || "";
     if (reply) {
