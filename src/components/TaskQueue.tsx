@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence, Reorder, useDragControls } from "framer-motion";
-import { GripVertical, User2, MoreHorizontal, CheckCircle2, Loader2, AlertOctagon, Timer } from "lucide-react";
+import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { User2, MoreHorizontal, CheckCircle2, Loader2, AlertOctagon, Timer } from "lucide-react";
 import { useTasks } from "@/hooks/use-tasks";
 import { agents } from "@/data/agents";
 import {
