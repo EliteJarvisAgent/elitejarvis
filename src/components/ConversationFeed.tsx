@@ -6,12 +6,7 @@ import { useMessages } from "@/hooks/use-messages";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
-const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "blpkggmfpxrjvcoclssq";
-const CLOUD_URL = `https://${PROJECT_ID}.supabase.co`;
-const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-const JARVIS_CHAT_URL = `${CLOUD_URL}/functions/v1/jarvis-chat`;
-const WEBHOOK_URL = "https://lovable-jarvis-bridge.vercel.app/api/jarvis";
+const JARVIS_CHAT_URL = "https://lovable-jarvis-bridge.vercel.app/api/jarvis";
 
 async function cleanTranscript(rawText: string): Promise<string> {
   try {
