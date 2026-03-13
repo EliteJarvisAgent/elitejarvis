@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { Clock, User2, MoreHorizontal, CheckCircle2, Loader2, AlertOctagon, Timer } from "lucide-react";
+import { motion, AnimatePresence, Reorder, useDragControls } from "framer-motion";
+import { GripVertical, User2, MoreHorizontal, CheckCircle2, Loader2, AlertOctagon, Timer } from "lucide-react";
 import { useTasks } from "@/hooks/use-tasks";
 import { agents } from "@/data/agents";
 import {
@@ -118,89 +118,123 @@ export function TaskQueue() {
 
       {/* Task List - Drag to reorder */}
       <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
-        <div className="space-y-2.5">
+        <Reorder.Group axis="y" values={tasks} onReorder={setTasks} className="space-y-2.5">
           <AnimatePresence>
-            {tasks.map((task, i) => {
-              const sc = statusConfig[task.status];
-              const pc = priorityConfig[task.priority];
-              const StatusIcon = sc.icon;
-              const isActive = task.status === "in-progress";
-
-              return (
-                <motion.div
-                  key={task.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ delay: i * 0.04, duration: 0.25 }}
-                  className={`glass-panel-elevated rounded-xl p-4 card-hover group ${
-                    isActive ? "animate-pulse-glow" : ""
-                  }`}
-                >
-                  {/* Top row */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div
-                      className="flex items-start gap-3 min-w-0 flex-1 cursor-pointer"
-                      onClick={() => navigate(`/tasks/${task.id}`)}
-                    >
-                      <div className={`h-2.5 w-2.5 rounded-full shrink-0 mt-1.5 ${pc.color} ${sc.dotClass}`} />
-                      <div className="min-w-0">
-                        <span className="text-sm font-medium text-foreground leading-snug block hover:text-primary transition-colors">
-                          {task.title}
-                        </span>
-                      </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 p-1 hover:bg-secondary rounded-lg"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem onClick={() => navigate(`/tasks/${task.id}`)}>
-                          View Details
-                        </DropdownMenuItem>
-                        {statusColumns.map((s) => (
-                          <DropdownMenuItem
-                            key={s.id}
-                            onClick={() => updateTask(task.id, { status: s.id as TaskStatus })}
-                          >
-                            Mark as {s.label}
-                          </DropdownMenuItem>
-                        ))}
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => deleteTask(task.id)}
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  {/* Bottom row */}
-                  <div className="flex items-center gap-2.5 mt-3 ml-5.5">
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-2.5 py-1 rounded-lg border ${sc.className}`}>
-                      <StatusIcon className={`h-3 w-3 ${isActive ? "animate-spin" : ""}`} />
-                      {sc.label}
-                    </span>
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <User2 className="h-3 w-3" />
-                      <span className="text-[11px] font-mono">{task.assignee}</span>
-                    </div>
-                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border border-border/40 text-muted-foreground ml-auto`}>
-                      {pc.label}
-                    </span>
-                  </div>
-                </motion.div>
-              );
-            })}
+            {tasks.map((task, i) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                index={i}
+                onNavigate={() => navigate(`/tasks/${task.id}`)}
+                onUpdateStatus={(status) => updateTask(task.id, { status: status as TaskStatus })}
+                onDelete={() => deleteTask(task.id)}
+              />
+            ))}
           </AnimatePresence>
-        </div>
+        </Reorder.Group>
       </div>
     </div>
+  );
+}
+
+function TaskCard({
+  task,
+  index,
+  onNavigate,
+  onUpdateStatus,
+  onDelete,
+}: {
+  task: DisplayTask;
+  index: number;
+  onNavigate: () => void;
+  onUpdateStatus: (status: string) => void;
+  onDelete: () => void;
+}) {
+  const dragControls = useDragControls();
+  const sc = statusConfig[task.status];
+  const pc = priorityConfig[task.priority];
+  const StatusIcon = sc.icon;
+  const isActive = task.status === "in-progress";
+
+  return (
+    <Reorder.Item
+      value={task}
+      dragListener={false}
+      dragControls={dragControls}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ delay: index * 0.04, duration: 0.25 }}
+      className={`glass-panel-elevated rounded-xl p-4 card-hover group ${
+        isActive ? "animate-pulse-glow" : ""
+      }`}
+    >
+      {/* Top row */}
+      <div className="flex items-start justify-between gap-3">
+        {/* Drag handle */}
+        <div
+          className="shrink-0 cursor-grab active:cursor-grabbing touch-none pt-1"
+          onPointerDown={(e) => dragControls.start(e)}
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+        </div>
+
+        <div
+          className="flex items-start gap-3 min-w-0 flex-1 cursor-pointer"
+          onClick={onNavigate}
+        >
+          <div className={`h-2.5 w-2.5 rounded-full shrink-0 mt-1.5 ${pc.color} ${sc.dotClass}`} />
+          <div className="min-w-0">
+            <span className="text-sm font-medium text-foreground leading-snug block hover:text-primary transition-colors">
+              {task.title}
+            </span>
+          </div>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 p-1 hover:bg-secondary rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={onNavigate}>
+              View Details
+            </DropdownMenuItem>
+            {statusColumns.map((s) => (
+              <DropdownMenuItem
+                key={s.id}
+                onClick={() => onUpdateStatus(s.id)}
+              >
+                Mark as {s.label}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={onDelete}
+            >
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Bottom row */}
+      <div className="flex items-center gap-2.5 mt-3 ml-10">
+        <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-2.5 py-1 rounded-lg border ${sc.className}`}>
+          <StatusIcon className={`h-3 w-3 ${isActive ? "animate-spin" : ""}`} />
+          {sc.label}
+        </span>
+        <div className="flex items-center gap-1 text-muted-foreground">
+          <User2 className="h-3 w-3" />
+          <span className="text-[11px] font-mono">{task.assignee}</span>
+        </div>
+        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border border-border/40 text-muted-foreground ml-auto`}>
+          {pc.label}
+        </span>
+      </div>
+    </Reorder.Item>
   );
 }
