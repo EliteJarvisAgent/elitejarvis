@@ -12,12 +12,12 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { message } = await req.json();
+    const { message, stream } = await req.json();
 
     const res = await fetch(JARVIS_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, stream: !!stream }),
     });
 
     if (!res.ok) {
@@ -29,6 +29,19 @@ serve(async (req) => {
       );
     }
 
+    // If streaming, pass through the SSE stream
+    if (stream && res.headers.get("content-type")?.includes("text/event-stream")) {
+      return new Response(res.body, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
+      });
+    }
+
+    // Non-streaming fallback
     const data = await res.json();
     console.log("Jarvis response:", JSON.stringify(data));
 

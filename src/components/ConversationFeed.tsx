@@ -27,46 +27,135 @@ async function cleanTranscript(rawText: string): Promise<string> {
   }
 }
 
-async function askJarvis(history: ChatMsg[]): Promise<string> {
-  const lastUserMsg = [...history].reverse().find((m) => m.role === "user");
-  const message = lastUserMsg?.content ?? "";
+// ---------- Streaming Jarvis API ----------
 
-  // Try direct API first, then fallback to edge function proxy
+async function askJarvisStream(
+  message: string,
+  onChunk: (text: string) => void
+): Promise<string> {
+  // Try direct API with streaming first
   try {
     const res = await fetch(WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, stream: true }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const contentType = res.headers.get("content-type") || "";
+
+    // Handle SSE stream
+    if (contentType.includes("text/event-stream") && res.body) {
+      return await readSSEStream(res.body, onChunk);
+    }
+
+    // Fallback: non-streaming JSON response
     const text = await res.text();
-    console.log("Jarvis raw response:", text);
     const data = JSON.parse(text);
-    if (data.response) return data.response;
-    // Handle unexpected shapes
-    if (data.reply) return data.reply;
-    if (data.message) return data.message;
-    if (typeof data === "string") return data;
+    const reply = data.response || data.reply || data.message || (typeof data === "string" ? data : "");
+    if (reply) {
+      onChunk(reply);
+      return reply;
+    }
     console.warn("Unexpected Jarvis response shape:", data);
-    return "Apologies sir, I received an unexpected response format.";
+    const fallbackMsg = "Apologies sir, I received an unexpected response format.";
+    onChunk(fallbackMsg);
+    return fallbackMsg;
   } catch (err) {
     console.error("Jarvis API error:", err);
-    // Fallback: try via edge function proxy to avoid CORS
+    // Fallback: try via edge function proxy with streaming
     try {
       const proxyRes = await fetch(`${CLOUD_URL}/functions/v1/jarvis-proxy`, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: CLOUD_KEY, Authorization: `Bearer ${CLOUD_KEY}` },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, stream: true }),
       });
       if (!proxyRes.ok) throw new Error(`Proxy HTTP ${proxyRes.status}`);
+
+      const ct = proxyRes.headers.get("content-type") || "";
+      if (ct.includes("text/event-stream") && proxyRes.body) {
+        return await readSSEStream(proxyRes.body, onChunk);
+      }
+
       const proxyData = await proxyRes.json();
-      return proxyData.response || proxyData.reply || "Apologies sir, I'm having difficulty processing that.";
+      const reply = proxyData.response || proxyData.reply || "Apologies sir, I'm having difficulty processing that.";
+      onChunk(reply);
+      return reply;
     } catch (proxyErr) {
       console.error("Jarvis proxy error:", proxyErr);
-      return "Apologies sir, I'm having difficulty processing that.";
+      const errMsg = "Apologies sir, I'm having difficulty processing that.";
+      onChunk(errMsg);
+      return errMsg;
     }
   }
 }
+
+async function readSSEStream(
+  body: ReadableStream<Uint8Array>,
+  onChunk: (fullText: string) => void
+): Promise<string> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let accumulated = "";
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete SSE lines
+      const lines = buffer.split("\n");
+      // Keep the last potentially incomplete line in the buffer
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith(":")) continue; // skip empty lines and comments
+
+        if (trimmed.startsWith("data: ")) {
+          const jsonStr = trimmed.slice(6);
+          if (jsonStr === "[DONE]") continue;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            // Handle OpenAI-style delta format
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              accumulated += content;
+              onChunk(accumulated);
+            }
+            // Handle simple { text: "..." } or { content: "..." } formats
+            else if (parsed.text) {
+              accumulated += parsed.text;
+              onChunk(accumulated);
+            } else if (parsed.content) {
+              accumulated += parsed.content;
+              onChunk(accumulated);
+            }
+            // Handle { response: "full text" } (non-delta)
+            else if (parsed.response) {
+              accumulated = parsed.response;
+              onChunk(accumulated);
+            }
+          } catch {
+            // Not valid JSON — might be raw text
+            accumulated += jsonStr;
+            onChunk(accumulated);
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return accumulated || "Apologies sir, I received an empty response.";
+}
+
+// ---------- TTS ----------
 
 async function speakWithTTS(
   text: string,
@@ -75,7 +164,6 @@ async function speakWithTTS(
   audioRef: React.MutableRefObject<HTMLAudioElement | null>
 ): Promise<void> {
   try {
-    // Use ElevenLabs TTS (George voice) via edge function
     const ttsRes = await fetch(`${CLOUD_URL}/functions/v1/elevenlabs-tts`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: CLOUD_KEY, Authorization: `Bearer ${CLOUD_KEY}` },
@@ -142,6 +230,8 @@ async function speakWithTTS(
   }
 }
 
+// ---------- Main Component ----------
+
 export function ConversationFeed() {
   const { messages, chatHistory, addMessage } = useMessages();
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -150,6 +240,7 @@ export function ConversationFeed() {
   const [liveTranscript, setLiveTranscript] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [manualText, setManualText] = useState("");
+  const [streamingText, setStreamingText] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioUnlockedRef = useRef(false);
@@ -162,6 +253,7 @@ export function ConversationFeed() {
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setIsSpeaking(false);
     setIsProcessing(false);
+    setStreamingText(null);
   }, []);
 
   const primeAudioPlayback = useCallback(() => {
@@ -195,7 +287,7 @@ export function ConversationFeed() {
 
   useEffect(() => {
     if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
-  }, [messages, isProcessing]);
+  }, [messages, isProcessing, streamingText]);
 
   const doSend = useCallback(
     async (rawText: string) => {
@@ -203,7 +295,6 @@ export function ConversationFeed() {
       setVoiceNotice("");
       handleInterrupt();
 
-      // Clean up speech-to-text for proper grammar & capitalization
       const text = await cleanTranscript(rawText);
 
       try {
@@ -213,19 +304,25 @@ export function ConversationFeed() {
       }
 
       setIsProcessing(true);
-      const newHistory: ChatMsg[] = [...chatHistory, { role: "user", content: text }];
+      setStreamingText("");
 
       try {
-        const reply = await askJarvis(newHistory);
+        const finalReply = await askJarvisStream(text, (partialText) => {
+          setStreamingText(partialText);
+        });
+
+        // Streaming complete — clear streaming state and persist final message
+        setStreamingText(null);
 
         try {
-          await addMessage("jarvis", reply);
+          await addMessage("jarvis", finalReply);
         } catch (error) {
           console.warn("Jarvis message save failed:", error);
         }
 
+        // Play TTS with the complete reply
         await speakWithTTS(
-          reply,
+          finalReply,
           () => {
             setIsProcessing(false);
             setIsSpeaking(true);
@@ -236,6 +333,7 @@ export function ConversationFeed() {
       } catch (err) {
         console.error("Jarvis error:", err);
         setIsProcessing(false);
+        setStreamingText(null);
         try {
           await addMessage("jarvis", "Apologies sir, I'm experiencing a temporary disruption. Please try again.");
         } catch {
@@ -311,6 +409,23 @@ export function ConversationFeed() {
           ))}
         </AnimatePresence>
 
+        {/* Streaming message bubble */}
+        {streamingText !== null && streamingText.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex gap-2 mb-2 justify-start"
+          >
+            <div className="min-w-0 max-w-[90%] sm:max-w-[85%] overflow-visible rounded-2xl rounded-tl-md px-3 sm:px-4 py-2 text-sm glass-panel-elevated text-foreground">
+              <div className="leading-relaxed max-w-none whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                <ReactMarkdown>{streamingText}</ReactMarkdown>
+                <span className="inline-block w-1.5 h-4 bg-primary/60 animate-pulse ml-0.5 align-text-bottom rounded-sm" />
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {isListening && (
           <div className="mb-2 rounded-xl border border-border bg-card/80 px-3 py-2 text-xs text-muted-foreground">
             <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-primary" />
@@ -324,7 +439,7 @@ export function ConversationFeed() {
           </div>
         )}
 
-        {isProcessing && (
+        {isProcessing && streamingText !== null && streamingText.length === 0 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start mb-2">
             <div className="glass-panel-elevated rounded-2xl rounded-tl-md px-4 py-2 text-sm text-muted-foreground">
               <span className="animate-pulse">Jarvis is thinking…</span>
