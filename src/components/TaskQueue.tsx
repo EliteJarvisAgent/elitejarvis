@@ -71,6 +71,7 @@ const priorityConfig: Record<string, { color: string; label: string }> = {
 export function TaskQueue() {
   const navigate = useNavigate();
   const { tasks: rawTasks, updateTask, deleteTask } = useTasks();
+  const { agents } = useAgents();
   
   const displayTasks = useMemo<DisplayTask[]>(() => 
     rawTasks.map(t => ({
@@ -79,8 +80,9 @@ export function TaskQueue() {
       status: mapStatus(t.status),
       priority: mapPriority(t.priority),
       assignee: t.assigneeId ? (agents.find(a => a.id === t.assigneeId)?.name ?? "Unassigned") : "Unassigned",
+      assigneeImage: t.assigneeId ? (agents.find(a => a.id === t.assigneeId)?.image ?? null) : null,
     })),
-    [rawTasks]
+    [rawTasks, agents]
   );
 
   const [tasks, setTasks] = useState<DisplayTask[]>([]);
