@@ -260,6 +260,7 @@ export function ConversationFeed() {
   const feedRef = useRef<HTMLDivElement>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioUnlockedRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleInterrupt = useCallback(() => {
     if (currentAudioRef.current) {
