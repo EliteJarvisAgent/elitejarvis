@@ -43,63 +43,33 @@ async function askJarvisStream(
   onChunk: (text: string) => void,
   signal?: AbortSignal
 ): Promise<string> {
-  // Primary: use jarvis-chat edge function with real SSE streaming
   try {
     const res = await fetch(JARVIS_CHAT_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: CLOUD_KEY,
-        Authorization: `Bearer ${CLOUD_KEY}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, stream: true }),
       signal,
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const contentType = res.headers.get("content-type") || "";
-    // Real SSE stream from edge function
     if (contentType.includes("text/event-stream") && res.body) {
       return await readSSEStream(res.body, onChunk);
     }
 
-    // Fallback: JSON response (non-streaming)
     const data = await res.json();
-    const reply = data.reply || data.response || data.message || "";
+    const reply = data.response || data.reply || data.message || "";
     if (reply) {
       await simulateTypewriter(reply, onChunk);
       return reply;
     }
-    throw new Error("Empty response from jarvis-chat");
+    throw new Error("Empty response");
   } catch (err) {
-    console.warn("jarvis-chat failed, trying bridge API:", err);
-    // Fallback: try bridge API directly
-    try {
-      const res = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, stream: true }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const contentType = res.headers.get("content-type") || "";
-      if (contentType.includes("text/event-stream") && res.body) {
-        return await readSSEStream(res.body, onChunk);
-      }
-
-      const data = await res.json();
-      const reply = data.response || data.reply || data.message || "";
-      if (reply) {
-        await simulateTypewriter(reply, onChunk);
-        return reply;
-      }
-      throw new Error("Empty bridge response");
-    } catch (fallbackErr) {
-      console.error("All Jarvis endpoints failed:", fallbackErr);
-      const errMsg = "Apologies sir, I'm having difficulty processing that.";
-      onChunk(errMsg);
-      return errMsg;
-    }
+    if (signal?.aborted) throw err;
+    console.error("Jarvis endpoint failed:", err);
+    const errMsg = "Apologies sir, I'm having difficulty processing that.";
+    onChunk(errMsg);
+    return errMsg;
   }
 }
 
