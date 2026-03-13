@@ -175,10 +175,13 @@ export function ConversationFeed() {
   }, [messages, isProcessing]);
 
   const doSend = useCallback(
-    async (text: string) => {
-      if (!text.trim()) return;
+    async (rawText: string) => {
+      if (!rawText.trim()) return;
       setVoiceNotice("");
       handleInterrupt();
+
+      // Clean up speech-to-text for proper grammar & capitalization
+      const text = await cleanTranscript(rawText);
 
       try {
         await addMessage("matthew", text);
