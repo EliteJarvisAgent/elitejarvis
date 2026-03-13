@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { User2, MoreHorizontal, CheckCircle2, Loader2, AlertOctagon, Timer } from "lucide-react";
 import { useTasks } from "@/hooks/use-tasks";
-import { agents } from "@/data/agents";
+import { useAgents } from "@/hooks/use-agents";
 import {
   DropdownMenu,
   DropdownMenuContent,
