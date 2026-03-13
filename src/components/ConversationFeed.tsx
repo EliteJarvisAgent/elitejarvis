@@ -45,7 +45,8 @@ async function simulateTypewriter(text: string, onChunk: (fullText: string) => v
 
 async function askJarvisStream(
   message: string,
-  onChunk: (text: string) => void
+  onChunk: (text: string) => void,
+  signal?: AbortSignal
 ): Promise<string> {
   // Primary: use jarvis-chat edge function with real SSE streaming
   try {
@@ -57,6 +58,7 @@ async function askJarvisStream(
         Authorization: `Bearer ${CLOUD_KEY}`,
       },
       body: JSON.stringify({ message, stream: true }),
+      signal,
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
