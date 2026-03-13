@@ -1,4 +1,4 @@
-import { Home, Users, LayoutDashboard, Activity, Settings } from "lucide-react";
+import { Home, Users, LayoutDashboard, Activity, Settings, Shield } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
