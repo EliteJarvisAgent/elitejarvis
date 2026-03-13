@@ -10,6 +10,7 @@ const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "blpkggmfpxrjvcoc
 const CLOUD_URL = `https://${PROJECT_ID}.supabase.co`;
 const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+const JARVIS_CHAT_URL = `${CLOUD_URL}/functions/v1/jarvis-chat`;
 const WEBHOOK_URL = "https://lovable-jarvis-bridge.vercel.app/api/jarvis";
 
 async function cleanTranscript(rawText: string): Promise<string> {
@@ -46,56 +47,51 @@ async function askJarvisStream(
   message: string,
   onChunk: (text: string) => void
 ): Promise<string> {
-  // Try direct API with streaming first
+  // Primary: use jarvis-chat edge function (Lovable AI gateway, high max_tokens)
   try {
-    const res = await fetch(WEBHOOK_URL, {
+    const res = await fetch(JARVIS_CHAT_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, stream: true }),
+      headers: {
+        "Content-Type": "application/json",
+        apikey: CLOUD_KEY,
+        Authorization: `Bearer ${CLOUD_KEY}`,
+      },
+      body: JSON.stringify({ message }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const contentType = res.headers.get("content-type") || "";
-
-    // Handle SSE stream
-    if (contentType.includes("text/event-stream") && res.body) {
-      return await readSSEStream(res.body, onChunk);
-    }
-
-    // Fallback: non-streaming JSON response — simulate typewriter
-    const text = await res.text();
-    const data = JSON.parse(text);
-    const reply = data.response || data.reply || data.message || (typeof data === "string" ? data : "");
+    const data = await res.json();
+    const reply = data.reply || data.response || data.message || "";
     if (reply) {
       await simulateTypewriter(reply, onChunk);
       return reply;
     }
-    console.warn("Unexpected Jarvis response shape:", data);
-    const fallbackMsg = "Apologies sir, I received an unexpected response format.";
-    onChunk(fallbackMsg);
-    return fallbackMsg;
+    throw new Error("Empty response from jarvis-chat");
   } catch (err) {
-    console.error("Jarvis API error:", err);
-    // Fallback: try via edge function proxy with streaming
+    console.warn("jarvis-chat failed, trying bridge API:", err);
+    // Fallback: try bridge API directly
     try {
-      const proxyRes = await fetch(`${CLOUD_URL}/functions/v1/jarvis-proxy`, {
+      const res = await fetch(WEBHOOK_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", apikey: CLOUD_KEY, Authorization: `Bearer ${CLOUD_KEY}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message, stream: true }),
       });
-      if (!proxyRes.ok) throw new Error(`Proxy HTTP ${proxyRes.status}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const ct = proxyRes.headers.get("content-type") || "";
-      if (ct.includes("text/event-stream") && proxyRes.body) {
-        return await readSSEStream(proxyRes.body, onChunk);
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("text/event-stream") && res.body) {
+        return await readSSEStream(res.body, onChunk);
       }
 
-      const proxyData = await proxyRes.json();
-      const reply = proxyData.response || proxyData.reply || "Apologies sir, I'm having difficulty processing that.";
-      await simulateTypewriter(reply, onChunk);
-      return reply;
-    } catch (proxyErr) {
-      console.error("Jarvis proxy error:", proxyErr);
+      const data = await res.json();
+      const reply = data.response || data.reply || data.message || "";
+      if (reply) {
+        await simulateTypewriter(reply, onChunk);
+        return reply;
+      }
+      throw new Error("Empty bridge response");
+    } catch (fallbackErr) {
+      console.error("All Jarvis endpoints failed:", fallbackErr);
       const errMsg = "Apologies sir, I'm having difficulty processing that.";
       onChunk(errMsg);
       return errMsg;
