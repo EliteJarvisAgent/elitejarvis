@@ -1,8 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { Clock, User2, MoreHorizontal, CheckCircle2, Loader2, AlertOctagon, Timer } from "lucide-react";
 import { useTasks } from "@/hooks/use-tasks";
 import { agents } from "@/data/agents";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { statusColumns, type TaskStatus } from "@/data/tasks";
 
 type DisplayStatus = "in-progress" | "pending" | "done" | "blocked";
 
@@ -61,7 +69,8 @@ const priorityConfig: Record<string, { color: string; label: string }> = {
 };
 
 export function TaskQueue() {
-  const { tasks: rawTasks } = useTasks();
+  const navigate = useNavigate();
+  const { tasks: rawTasks, updateTask, deleteTask } = useTasks();
   
   const displayTasks = useMemo<DisplayTask[]>(() => 
     rawTasks.map(t => ({
@@ -132,17 +141,46 @@ export function TaskQueue() {
                 >
                   {/* Top row */}
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div
+                      className="flex items-start gap-3 min-w-0 flex-1 cursor-pointer"
+                      onClick={() => navigate(`/tasks/${task.id}`)}
+                    >
                       <div className={`h-2.5 w-2.5 rounded-full shrink-0 mt-1.5 ${pc.color} ${sc.dotClass}`} />
                       <div className="min-w-0">
-                        <span className="text-sm font-medium text-foreground leading-snug block">
+                        <span className="text-sm font-medium text-foreground leading-snug block hover:text-primary transition-colors">
                           {task.title}
                         </span>
                       </div>
                     </div>
-                    <button className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 p-1 hover:bg-secondary rounded-lg">
-                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 p-1 hover:bg-secondary rounded-lg"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onClick={() => navigate(`/tasks/${task.id}`)}>
+                          View Details
+                        </DropdownMenuItem>
+                        {statusColumns.map((s) => (
+                          <DropdownMenuItem
+                            key={s.id}
+                            onClick={() => updateTask(task.id, { status: s.id as TaskStatus })}
+                          >
+                            Mark as {s.label}
+                          </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => deleteTask(task.id)}
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
                   {/* Bottom row */}
