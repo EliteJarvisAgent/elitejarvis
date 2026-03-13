@@ -27,21 +27,43 @@ async function cleanTranscript(rawText: string): Promise<string> {
 }
 
 async function askJarvis(history: ChatMsg[]): Promise<string> {
-  try {
-    // Get the latest user message to send to the webhook
-    const lastUserMsg = [...history].reverse().find((m) => m.role === "user");
-    const message = lastUserMsg?.content ?? "";
+  const lastUserMsg = [...history].reverse().find((m) => m.role === "user");
+  const message = lastUserMsg?.content ?? "";
 
+  // Try direct API first, then fallback to edge function proxy
+  try {
     const res = await fetch(WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message }),
     });
-    if (!res.ok) throw new Error(`${res.status}`);
-    const data = await res.json();
-    return data.response || "Apologies sir, I'm having difficulty processing that.";
-  } catch {
-    return "Apologies sir, I'm having difficulty processing that.";
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    console.log("Jarvis raw response:", text);
+    const data = JSON.parse(text);
+    if (data.response) return data.response;
+    // Handle unexpected shapes
+    if (data.reply) return data.reply;
+    if (data.message) return data.message;
+    if (typeof data === "string") return data;
+    console.warn("Unexpected Jarvis response shape:", data);
+    return "Apologies sir, I received an unexpected response format.";
+  } catch (err) {
+    console.error("Jarvis API error:", err);
+    // Fallback: try via edge function proxy to avoid CORS
+    try {
+      const proxyRes = await fetch(`${CLOUD_URL}/functions/v1/jarvis-proxy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: CLOUD_KEY, Authorization: `Bearer ${CLOUD_KEY}` },
+        body: JSON.stringify({ message }),
+      });
+      if (!proxyRes.ok) throw new Error(`Proxy HTTP ${proxyRes.status}`);
+      const proxyData = await proxyRes.json();
+      return proxyData.response || proxyData.reply || "Apologies sir, I'm having difficulty processing that.";
+    } catch (proxyErr) {
+      console.error("Jarvis proxy error:", proxyErr);
+      return "Apologies sir, I'm having difficulty processing that.";
+    }
   }
 }
 
