@@ -27,6 +27,19 @@ async function cleanTranscript(rawText: string): Promise<string> {
   }
 }
 
+// Simulate typewriter for non-streaming responses
+async function simulateTypewriter(text: string, onChunk: (fullText: string) => void): Promise<void> {
+  const words = text.split(/(\s+)/);
+  let accumulated = "";
+  for (const word of words) {
+    accumulated += word;
+    onChunk(accumulated);
+    if (word.trim()) {
+      await new Promise((r) => setTimeout(r, 18));
+    }
+  }
+}
+
 // ---------- Streaming Jarvis API ----------
 
 async function askJarvisStream(
@@ -49,12 +62,12 @@ async function askJarvisStream(
       return await readSSEStream(res.body, onChunk);
     }
 
-    // Fallback: non-streaming JSON response
+    // Fallback: non-streaming JSON response — simulate typewriter
     const text = await res.text();
     const data = JSON.parse(text);
     const reply = data.response || data.reply || data.message || (typeof data === "string" ? data : "");
     if (reply) {
-      onChunk(reply);
+      await simulateTypewriter(reply, onChunk);
       return reply;
     }
     console.warn("Unexpected Jarvis response shape:", data);
@@ -79,7 +92,7 @@ async function askJarvisStream(
 
       const proxyData = await proxyRes.json();
       const reply = proxyData.response || proxyData.reply || "Apologies sir, I'm having difficulty processing that.";
-      onChunk(reply);
+      await simulateTypewriter(reply, onChunk);
       return reply;
     } catch (proxyErr) {
       console.error("Jarvis proxy error:", proxyErr);
