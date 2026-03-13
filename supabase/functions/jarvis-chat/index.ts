@@ -49,7 +49,7 @@ serve(async (req) => {
           { role: "system", content: SYSTEM_PROMPT },
           ...messages,
         ],
-        max_tokens: 300,
+        max_tokens: 4096,
       }),
     });
 
