@@ -263,6 +263,11 @@ export function ConversationFeed() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleInterrupt = useCallback(() => {
+    // Abort any in-flight SSE stream
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current.currentTime = 0;
@@ -270,8 +275,12 @@ export function ConversationFeed() {
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setIsSpeaking(false);
     setIsProcessing(false);
+    // Save whatever was streamed so far before clearing
+    if (streamingText && streamingText.length > 0) {
+      addMessage("jarvis", streamingText).catch(() => {});
+    }
     setStreamingText(null);
-  }, []);
+  }, [streamingText, addMessage]);
 
   const primeAudioPlayback = useCallback(() => {
     if (audioUnlockedRef.current) return;
