@@ -221,8 +221,12 @@ function TaskCard({
           <StatusIcon className={`h-3 w-3 ${isActive ? "animate-spin" : ""}`} />
           {sc.label}
         </span>
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <User2 className="h-3 w-3" />
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          {task.assigneeImage ? (
+            <img src={task.assigneeImage} alt={task.assignee} className="h-4 w-4 rounded-full object-cover" />
+          ) : (
+            <User2 className="h-3 w-3" />
+          )}
           <span className="text-[11px] font-mono">{task.assignee}</span>
         </div>
         <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border border-border/40 text-muted-foreground ml-auto`}>
