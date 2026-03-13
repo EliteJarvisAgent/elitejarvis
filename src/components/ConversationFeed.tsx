@@ -27,17 +27,62 @@ async function cleanTranscript(rawText: string): Promise<string> {
   }
 }
 
+const JARVIS_MAX_TOKENS = 8192;
+const TERMINAL_PUNCTUATION_REGEX = /[.!?…]["')\]]?$/;
+const INCOMPLETE_TRAIL_REGEX =
+  /\b(and|or|to|get|with|for|of|the|a|an|in|on|at|from|is|are|was|were|need|needs|trying|should|could|would)\b[:;,\-–—]?$/i;
+
 // Simulate typewriter for non-streaming responses
-async function simulateTypewriter(text: string, onChunk: (fullText: string) => void): Promise<void> {
+async function simulateTypewriter(
+  text: string,
+  onChunk: (fullText: string) => void,
+  signal?: AbortSignal,
+  initialText = ""
+): Promise<string> {
   const words = text.split(/(\s+)/);
-  let accumulated = "";
+  let accumulated = initialText;
   for (const word of words) {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
     accumulated += word;
     onChunk(accumulated);
     if (word.trim()) {
       await new Promise((r) => setTimeout(r, 18));
     }
   }
+  return accumulated;
+}
+
+function buildJarvisRequestBody(message: string, stream = true) {
+  return {
+    message,
+    stream,
+    max_tokens: JARVIS_MAX_TOKENS,
+    maxOutputTokens: JARVIS_MAX_TOKENS,
+    num_predict: JARVIS_MAX_TOKENS,
+  };
+}
+
+function isLikelyTruncatedReply(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (TERMINAL_PUNCTUATION_REGEX.test(trimmed)) return false;
+  return trimmed.length >= 90 || INCOMPLETE_TRAIL_REGEX.test(trimmed);
+}
+
+function appendWithoutOverlap(base: string, addition: string): string {
+  const left = base.trimEnd();
+  const right = addition.trimStart();
+  if (!right) return left;
+
+  const maxOverlap = Math.min(220, left.length, right.length);
+  for (let size = maxOverlap; size >= 16; size--) {
+    if (left.slice(-size).toLowerCase() === right.slice(0, size).toLowerCase()) {
+      return left + right.slice(size);
+    }
+  }
+
+  const needsSpace = left.length > 0 && !/\s$/.test(left) && !/^[,.;:!?]/.test(right);
+  return needsSpace ? `${left} ${right}` : left + right;
 }
 
 // ---------- Streaming Jarvis API ----------
@@ -51,7 +96,7 @@ async function askJarvisStream(
     const res = await fetch(JARVIS_CHAT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, stream: true }),
+      body: JSON.stringify(buildJarvisRequestBody(message, true)),
       signal,
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -63,11 +108,42 @@ async function askJarvisStream(
 
     const data = await res.json();
     const reply = data.response || data.reply || data.message || "";
-    if (reply) {
-      await simulateTypewriter(reply, onChunk);
-      return reply;
+    if (!reply) throw new Error("Empty response");
+
+    let fullReply = await simulateTypewriter(reply, onChunk, signal);
+
+    const maxContinuationAttempts = 2;
+    for (let attempt = 0; attempt < maxContinuationAttempts && isLikelyTruncatedReply(fullReply); attempt++) {
+      if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+
+      const continuationPrompt = `Continue exactly from where you stopped. Do not restart and do not repeat previous text.\n\nLast response fragment:\n${fullReply.slice(-600)}`;
+      const continuationRes = await fetch(JARVIS_CHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildJarvisRequestBody(continuationPrompt, false)),
+        signal,
+      });
+
+      if (!continuationRes.ok) break;
+
+      let continuationReply = "";
+      try {
+        const continuationData = await continuationRes.json();
+        continuationReply = continuationData.response || continuationData.reply || continuationData.message || "";
+      } catch {
+        break;
+      }
+
+      if (!continuationReply) break;
+
+      const merged = appendWithoutOverlap(fullReply, continuationReply);
+      const addition = merged.slice(fullReply.length);
+      if (!addition.trim()) break;
+
+      fullReply = await simulateTypewriter(addition, onChunk, signal, fullReply);
     }
-    throw new Error("Empty response");
+
+    return fullReply;
   } catch (err) {
     if (signal?.aborted) throw err;
     console.error("Jarvis endpoint failed:", err);
@@ -311,6 +387,8 @@ export function ConversationFeed() {
           setStreamingText(partialText);
         }, controller.signal);
 
+        abortControllerRef.current = null;
+
         // Streaming complete — clear streaming state and persist final message
         setStreamingText(null);
 
@@ -331,6 +409,11 @@ export function ConversationFeed() {
           currentAudioRef
         );
       } catch (err) {
+        abortControllerRef.current = null;
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setIsProcessing(false);
+          return;
+        }
         console.error("Jarvis error:", err);
         setIsProcessing(false);
         setStreamingText(null);
