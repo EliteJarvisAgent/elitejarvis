@@ -60,7 +60,7 @@ serve(async (req) => {
             similarity_boost: 0.85,
             style: 0.25,              // More character
             use_speaker_boost: true,
-            speed: 0.88,              // Slower, more deliberate — like Jarvis
+            speed: 0.95,              // Slightly deliberate — like Jarvis
           },
         }),
       }
