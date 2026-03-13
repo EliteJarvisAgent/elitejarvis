@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import AgentsPage from "./pages/Agents";
 import TasksPage from "./pages/Tasks";
 import TaskDetailPage from "./pages/TaskDetail";
+import DevicesPage from "./pages/Devices";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
