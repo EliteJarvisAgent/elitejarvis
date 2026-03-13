@@ -135,19 +135,31 @@ export default function TaskDetailPage() {
             )}
 
             {/* Status dropdown */}
-            <div className="relative">
-              <div className="flex items-center gap-2">
-                <div className={`h-2.5 w-2.5 rounded-full ${ss.dot}`} />
-                <select
-                  value={task.status}
-                  onChange={e => handleStatusChange(e.target.value as TaskStatus)}
-                  className={`flex-1 appearance-none ${ss.bg} ${ss.text} border border-border rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none cursor-pointer`}
-                >
-                  {statusColumns.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-muted-foreground" />
-              </div>
-            </div>
+            <Select value={task.status} onValueChange={(v) => handleStatusChange(v as TaskStatus)}>
+              <SelectTrigger className={`w-full ${ss.bg} ${ss.text} border-border/60 rounded-xl font-mono text-xs uppercase tracking-wider`}>
+                <div className="flex items-center gap-2">
+                  <div className={`h-2 w-2 rounded-full ${ss.dot}`} />
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="glass-panel-elevated border-border/60">
+                {statusColumns.map(s => {
+                  const sStyle = statusStyles[s.id] || statusStyles.backlog;
+                  return (
+                    <SelectItem
+                      key={s.id}
+                      value={s.id}
+                      className="font-mono text-xs uppercase tracking-wider cursor-pointer focus:bg-primary/10 focus:text-primary"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2 w-2 rounded-full ${sStyle.dot}`} />
+                        {s.label}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
 
             {/* Assignee with avatar */}
             <div>
