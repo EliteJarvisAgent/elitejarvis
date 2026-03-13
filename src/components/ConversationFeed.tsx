@@ -27,6 +27,19 @@ async function cleanTranscript(rawText: string): Promise<string> {
   }
 }
 
+// Simulate typewriter for non-streaming responses
+async function simulateTypewriter(text: string, onChunk: (fullText: string) => void): Promise<void> {
+  const words = text.split(/(\s+)/);
+  let accumulated = "";
+  for (const word of words) {
+    accumulated += word;
+    onChunk(accumulated);
+    if (word.trim()) {
+      await new Promise((r) => setTimeout(r, 18));
+    }
+  }
+}
+
 // ---------- Streaming Jarvis API ----------
 
 async function askJarvisStream(
