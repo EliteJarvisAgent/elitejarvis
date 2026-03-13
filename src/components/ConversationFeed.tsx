@@ -92,7 +92,7 @@ async function askJarvisStream(
 
       const proxyData = await proxyRes.json();
       const reply = proxyData.response || proxyData.reply || "Apologies sir, I'm having difficulty processing that.";
-      onChunk(reply);
+      await simulateTypewriter(reply, onChunk);
       return reply;
     } catch (proxyErr) {
       console.error("Jarvis proxy error:", proxyErr);
