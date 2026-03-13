@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Calendar, Clock, ChevronDown, ChevronUp, Trash2, Archive, Terminal, Copy, Check, CircleDot } from "lucide-react";
-import { agents } from "@/data/agents";
+import { useAgents } from "@/hooks/use-agents";
 import { statusColumns, type Task, type TaskStatus } from "@/data/tasks";
 import { useTasks } from "@/hooks/use-tasks";
 import { fetchTaskActivity, logTaskActivity } from "@/lib/api-extra";
@@ -33,6 +33,7 @@ export default function TaskDetailPage() {
   const { taskId } = useParams();
   const navigate = useNavigate();
   const { tasks, updateTask, deleteTask } = useTasks();
+  const { agents } = useAgents();
   const [activity, setActivity] = useState<any[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [logsOpen, setLogsOpen] = useState(false);

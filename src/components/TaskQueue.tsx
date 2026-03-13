@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { User2, MoreHorizontal, CheckCircle2, Loader2, AlertOctagon, Timer } from "lucide-react";
 import { useTasks } from "@/hooks/use-tasks";
-import { agents } from "@/data/agents";
+import { useAgents } from "@/hooks/use-agents";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,7 @@ interface DisplayTask {
   status: DisplayStatus;
   priority: "high" | "medium" | "low";
   assignee: string;
+  assigneeImage: string | null;
 }
 
 function mapStatus(s: string): DisplayStatus {
@@ -71,6 +72,7 @@ const priorityConfig: Record<string, { color: string; label: string }> = {
 export function TaskQueue() {
   const navigate = useNavigate();
   const { tasks: rawTasks, updateTask, deleteTask } = useTasks();
+  const { agents } = useAgents();
   
   const displayTasks = useMemo<DisplayTask[]>(() => 
     rawTasks.map(t => ({
@@ -79,8 +81,9 @@ export function TaskQueue() {
       status: mapStatus(t.status),
       priority: mapPriority(t.priority),
       assignee: t.assigneeId ? (agents.find(a => a.id === t.assigneeId)?.name ?? "Unassigned") : "Unassigned",
+      assigneeImage: t.assigneeId ? (agents.find(a => a.id === t.assigneeId)?.image ?? null) : null,
     })),
-    [rawTasks]
+    [rawTasks, agents]
   );
 
   const [tasks, setTasks] = useState<DisplayTask[]>([]);
@@ -218,8 +221,12 @@ function TaskCard({
           <StatusIcon className={`h-3 w-3 ${isActive ? "animate-spin" : ""}`} />
           {sc.label}
         </span>
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <User2 className="h-3 w-3" />
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          {task.assigneeImage ? (
+            <img src={task.assigneeImage} alt={task.assignee} className="h-4 w-4 rounded-full object-cover" />
+          ) : (
+            <User2 className="h-3 w-3" />
+          )}
           <span className="text-[11px] font-mono">{task.assignee}</span>
         </div>
         <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border border-border/40 text-muted-foreground ml-auto`}>
