@@ -138,14 +138,14 @@ export function VoiceOrb({
     clearSilenceTimer();
     silenceTimerRef.current = setTimeout(() => {
       recognitionRef.current?.stop();
-    }, 10000);
+    }, 45000);
 
     recognition.onresult = (e: SpeechRecognitionEvent) => {
       // Reset silence timer on any speech
       clearSilenceTimer();
       silenceTimerRef.current = setTimeout(() => {
         recognitionRef.current?.stop();
-      }, 10000);
+      }, 45000);
 
       let finalText = "";
       let interimText = "";
