@@ -6,6 +6,13 @@ import { agents } from "@/data/agents";
 import { statusColumns, type Task, type TaskStatus } from "@/data/tasks";
 import { useTasks } from "@/hooks/use-tasks";
 import { fetchTaskActivity, logTaskActivity } from "@/lib/api-extra";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const statusStyles: Record<string, { bg: string; text: string; dot: string }> = {
   backlog: { bg: "bg-secondary", text: "text-muted-foreground", dot: "bg-muted-foreground" },
@@ -128,44 +135,70 @@ export default function TaskDetailPage() {
             )}
 
             {/* Status dropdown */}
-            <div className="relative">
-              <div className="flex items-center gap-2">
-                <div className={`h-2.5 w-2.5 rounded-full ${ss.dot}`} />
-                <select
-                  value={task.status}
-                  onChange={e => handleStatusChange(e.target.value as TaskStatus)}
-                  className={`flex-1 appearance-none ${ss.bg} ${ss.text} border border-border rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none cursor-pointer`}
-                >
-                  {statusColumns.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-muted-foreground" />
-              </div>
-            </div>
-
-            {/* Assignee with avatar */}
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Assigned To</label>
-              <div className="relative flex items-center gap-3 bg-card border border-border rounded-xl px-3 py-2">
-                {agent ? (
-                  <img src={agent.image} alt={agent.name} className="h-9 w-9 rounded-lg object-cover shrink-0" />
-                ) : (
-                  <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                    <span className="text-xs text-muted-foreground">?</span>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <select
-                    value={task.assigneeId || ""}
-                    onChange={e => handleAssigneeChange(e.target.value)}
-                    className="w-full appearance-none bg-transparent text-sm font-medium text-foreground focus:outline-none cursor-pointer"
-                  >
-                    <option value="">Unassigned</option>
-                    {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                  {agent && <p className="text-xs text-muted-foreground -mt-0.5">{agent.role}</p>}
+            <Select value={task.status} onValueChange={(v) => handleStatusChange(v as TaskStatus)}>
+              <SelectTrigger className={`w-full ${ss.bg} ${ss.text} border-border/60 rounded-xl font-mono text-xs uppercase tracking-wider`}>
+                <div className="flex items-center gap-2">
+                  <div className={`h-2 w-2 rounded-full ${ss.dot}`} />
+                  <SelectValue />
                 </div>
-                <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-              </div>
+              </SelectTrigger>
+              <SelectContent className="glass-panel-elevated border-border/60">
+                {statusColumns.map(s => {
+                  const sStyle = statusStyles[s.id] || statusStyles.backlog;
+                  return (
+                    <SelectItem
+                      key={s.id}
+                      value={s.id}
+                      className="font-mono text-xs uppercase tracking-wider cursor-pointer focus:bg-primary/10 focus:text-primary"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2 w-2 rounded-full ${sStyle.dot}`} />
+                        {s.label}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+
+            {/* Assignee */}
+            <div>
+              <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-1.5">Assigned To</label>
+              <Select value={task.assigneeId || "_unassigned"} onValueChange={(v) => handleAssigneeChange(v === "_unassigned" ? "" : v)}>
+                <SelectTrigger className="w-full border-border/60 rounded-xl bg-card">
+                  <div className="flex items-center gap-3">
+                    {agent ? (
+                      <img src={agent.image} alt={agent.name} className="h-7 w-7 rounded-lg object-cover shrink-0" />
+                    ) : (
+                      <div className="h-7 w-7 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                        <span className="text-[10px] text-muted-foreground">?</span>
+                      </div>
+                    )}
+                    <div className="text-left">
+                      <SelectValue />
+                      {agent && <p className="text-[10px] text-muted-foreground -mt-0.5">{agent.role}</p>}
+                    </div>
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="glass-panel-elevated border-border/60">
+                  <SelectItem value="_unassigned" className="cursor-pointer focus:bg-primary/10 focus:text-primary">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-lg bg-secondary flex items-center justify-center">
+                        <span className="text-[10px] text-muted-foreground">?</span>
+                      </div>
+                      Unassigned
+                    </div>
+                  </SelectItem>
+                  {agents.map(a => (
+                    <SelectItem key={a.id} value={a.id} className="cursor-pointer focus:bg-primary/10 focus:text-primary">
+                      <div className="flex items-center gap-2">
+                        <img src={a.image} alt={a.name} className="h-6 w-6 rounded-lg object-cover" />
+                        {a.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Meta info */}
