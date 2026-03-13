@@ -45,7 +45,8 @@ async function simulateTypewriter(text: string, onChunk: (fullText: string) => v
 
 async function askJarvisStream(
   message: string,
-  onChunk: (text: string) => void
+  onChunk: (text: string) => void,
+  signal?: AbortSignal
 ): Promise<string> {
   // Primary: use jarvis-chat edge function with real SSE streaming
   try {
@@ -57,6 +58,7 @@ async function askJarvisStream(
         Authorization: `Bearer ${CLOUD_KEY}`,
       },
       body: JSON.stringify({ message, stream: true }),
+      signal,
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -260,8 +262,14 @@ export function ConversationFeed() {
   const feedRef = useRef<HTMLDivElement>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioUnlockedRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleInterrupt = useCallback(() => {
+    // Abort any in-flight SSE stream
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current.currentTime = 0;
@@ -269,8 +277,12 @@ export function ConversationFeed() {
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setIsSpeaking(false);
     setIsProcessing(false);
+    // Save whatever was streamed so far before clearing
+    if (streamingText && streamingText.length > 0) {
+      addMessage("jarvis", streamingText).catch(() => {});
+    }
     setStreamingText(null);
-  }, []);
+  }, [streamingText, addMessage]);
 
   const primeAudioPlayback = useCallback(() => {
     if (audioUnlockedRef.current) return;
@@ -322,10 +334,13 @@ export function ConversationFeed() {
       setIsProcessing(true);
       setStreamingText("");
 
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       try {
         const finalReply = await askJarvisStream(text, (partialText) => {
           setStreamingText(partialText);
-        });
+        }, controller.signal);
 
         // Streaming complete — clear streaming state and persist final message
         setStreamingText(null);
