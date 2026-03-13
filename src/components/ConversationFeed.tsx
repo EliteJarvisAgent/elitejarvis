@@ -334,10 +334,13 @@ export function ConversationFeed() {
       setIsProcessing(true);
       setStreamingText("");
 
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       try {
         const finalReply = await askJarvisStream(text, (partialText) => {
           setStreamingText(partialText);
-        });
+        }, controller.signal);
 
         // Streaming complete — clear streaming state and persist final message
         setStreamingText(null);
