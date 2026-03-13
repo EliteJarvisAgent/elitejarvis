@@ -11,6 +11,21 @@ const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 const WEBHOOK_URL = "https://lovable-jarvis-bridge.vercel.app/api/jarvis";
 
+async function cleanTranscript(rawText: string): Promise<string> {
+  try {
+    const res = await fetch(`${CLOUD_URL}/functions/v1/clean-transcript`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: CLOUD_KEY, Authorization: `Bearer ${CLOUD_KEY}` },
+      body: JSON.stringify({ text: rawText }),
+    });
+    if (!res.ok) return rawText;
+    const data = await res.json();
+    return data.cleaned || rawText;
+  } catch {
+    return rawText;
+  }
+}
+
 async function askJarvis(history: ChatMsg[]): Promise<string> {
   try {
     // Get the latest user message to send to the webhook
