@@ -33,6 +33,7 @@ export default function TaskDetailPage() {
   const { taskId } = useParams();
   const navigate = useNavigate();
   const { tasks, updateTask, deleteTask } = useTasks();
+  const { agents } = useAgents();
   const [activity, setActivity] = useState<any[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [logsOpen, setLogsOpen] = useState(false);
