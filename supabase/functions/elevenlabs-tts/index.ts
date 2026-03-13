@@ -36,7 +36,6 @@ serve(async (req) => {
     // Insert brief pauses after periods, commas, and before "sir"/"ma'am"
     let processedText = text
       .replace(/\.\s+/g, ".\n... \n")          // Longer pause after sentences
-      .replace(/,\s+/g, ", ... ")               // Brief pause after commas
       .replace(/:\s+/g, ": ... ")               // Pause after colons
       .replace(/\n{3,}/g, "\n\n");              // Clean up excessive breaks
 
