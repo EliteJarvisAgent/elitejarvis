@@ -6,6 +6,13 @@ import { agents } from "@/data/agents";
 import { statusColumns, type Task, type TaskStatus } from "@/data/tasks";
 import { useTasks } from "@/hooks/use-tasks";
 import { fetchTaskActivity, logTaskActivity } from "@/lib/api-extra";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const statusStyles: Record<string, { bg: string; text: string; dot: string }> = {
   backlog: { bg: "bg-secondary", text: "text-muted-foreground", dot: "bg-muted-foreground" },
