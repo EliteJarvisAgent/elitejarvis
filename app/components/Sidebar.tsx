@@ -10,6 +10,7 @@ import {
   Settings,
   Menu,
   X,
+  Mic,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ export function Sidebar() {
     { href: "/agents", label: "Agents", icon: Bot },
     { href: "/tasks", label: "Tasks", icon: CheckSquare },
     { href: "/chat", label: "Chat", icon: MessageSquare },
+    { href: "/wake", label: "Wake Jarvis", icon: Mic },
     { href: "/settings", label: "Settings", icon: Settings },
   ];
 
