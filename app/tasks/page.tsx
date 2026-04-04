@@ -1,245 +1,260 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Play, Trash2, Calendar, Clock } from "lucide-react";
+import { Plus, Trash2, Clock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "@/lib/backend-client";
 
 interface Task {
-  id: number;
+  id: string;
   title: string;
-  agent: string;
+  description: string;
   status: string;
-  createdAt: string;
-  duration: number;
+  priority: string;
+  created_at: string;
 }
 
-const TASK_TEMPLATES = [
-  {
-    id: 1,
-    name: "Email Analysis",
-    description: "Analyze email campaigns and engagement",
-    agent: "analytics-bot",
-    icon: "📧",
-  },
-  {
-    id: 2,
-    name: "Blog Post Generation",
-    description: "Generate blog posts on specified topics",
-    agent: "writer-bot",
-    icon: "📝",
-  },
-  {
-    id: 3,
-    name: "Code Review",
-    description: "Perform code reviews on pull requests",
-    agent: "code-bot",
-    icon: "💻",
-  },
-  {
-    id: 4,
-    name: "Market Research",
-    description: "Research and analyze market trends",
-    agent: "research-bot",
-    icon: "📊",
-  },
-  {
-    id: 5,
-    name: "Customer Support",
-    description: "Process and respond to customer inquiries",
-    agent: "jarvis",
-    icon: "🤝",
-  },
-  {
-    id: 6,
-    name: "Data Processing",
-    description: "Process and clean datasets",
-    agent: "analytics-bot",
-    icon: "🔢",
-  },
-];
+const PRIORITY_COLORS: Record<string, string> = {
+  critical: "bg-red-900 text-red-200",
+  high: "bg-orange-900 text-orange-200",
+  medium: "bg-yellow-900 text-yellow-200",
+  low: "bg-slate-700 text-slate-300",
+};
 
-const RECURRING_JOBS = [
-  {
-    id: 1,
-    name: "Daily Report Generation",
-    schedule: "9:00 AM Every Day",
-    lastRun: "Today at 9:00 AM",
-    nextRun: "Tomorrow at 9:00 AM",
-    status: "active",
-  },
-  {
-    id: 2,
-    name: "Weekly Analytics Summary",
-    schedule: "Monday at 8:00 AM",
-    lastRun: "Mar 10 at 8:00 AM",
-    nextRun: "Mar 17 at 8:00 AM",
-    status: "active",
-  },
-  {
-    id: 3,
-    name: "Monthly Budget Review",
-    schedule: "1st of Month at 10:00 AM",
-    lastRun: "Mar 1 at 10:00 AM",
-    nextRun: "Apr 1 at 10:00 AM",
-    status: "active",
-  },
-];
+const STATUS_COLORS: Record<string, string> = {
+  done: "bg-green-900 text-green-200",
+  "in-progress": "bg-blue-900 text-blue-200",
+  todo: "bg-slate-700 text-slate-300",
+  review: "bg-purple-900 text-purple-200",
+  backlog: "bg-slate-800 text-slate-400",
+};
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+  const [newPriority, setNewPriority] = useState("medium");
+  const [showForm, setShowForm] = useState(false);
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        const res = await fetch("/api/tasks");
-        const data = await res.json();
-        setTasks(data.tasks);
-      } catch (error) {
-        console.error("Failed to fetch tasks:", error);
-        toast.error("Failed to load tasks");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTasks();
-  }, []);
-
-  const handleCreateTask = (templateId: number) => {
-    const template = TASK_TEMPLATES.find((t) => t.id === templateId);
-    toast.success(`Task "${template?.name}" created and scheduled`);
+  const loadTasks = async () => {
+    try {
+      const data = await api.fetchTasks();
+      setTasks(data);
+    } catch {
+      toast.error("Failed to load tasks");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteRecurring = (jobId: number) => {
-    toast.success("Recurring job deleted");
+  useEffect(() => { loadTasks(); }, []);
+
+  const handleCreate = async () => {
+    if (!newTitle.trim()) return;
+    setCreating(true);
+    try {
+      await api.createTask({
+        title: newTitle.trim(),
+        description: newDesc.trim(),
+        status: "todo",
+        priority: newPriority,
+        assignee_id: null,
+      });
+      toast.success("Task created");
+      setNewTitle("");
+      setNewDesc("");
+      setNewPriority("medium");
+      setShowForm(false);
+      await loadTasks();
+    } catch {
+      toast.error("Failed to create task");
+    } finally {
+      setCreating(false);
+    }
   };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await api.deleteTask(id);
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+      toast.success("Task deleted");
+    } catch {
+      toast.error("Failed to delete task");
+    }
+  };
+
+  const handleStatusChange = async (id: string, status: string) => {
+    try {
+      await api.updateTask(id, { status });
+      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+      toast.success("Status updated");
+    } catch {
+      toast.error("Failed to update task");
+    }
+  };
+
+  const byStatus = (s: string) => tasks.filter((t) => t.status === s);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-500"></div>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="animate-spin text-blue-500" size={32} />
       </div>
     );
   }
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold text-white mb-2">Tasks</h1>
-        <p className="text-slate-400">Create and manage task templates and recurring jobs</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-white mb-2">Tasks</h1>
+          <p className="text-slate-400">{tasks.length} task{tasks.length !== 1 ? "s" : ""} total</p>
+        </div>
+        <Button
+          className="bg-blue-600 hover:bg-blue-700 mt-2"
+          onClick={() => setShowForm((v) => !v)}
+        >
+          <Plus size={16} className="mr-2" />
+          New Task
+        </Button>
       </div>
 
-      <Tabs defaultValue="templates" className="space-y-6">
+      {/* Create Task Form */}
+      {showForm && (
+        <Card className="bg-slate-900 border-slate-600">
+          <CardContent className="p-6 space-y-4">
+            <h2 className="text-white font-semibold text-lg">Create Task</h2>
+            <Input
+              placeholder="Task title *"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+            />
+            <Input
+              placeholder="Description (optional)"
+              value={newDesc}
+              onChange={(e) => setNewDesc(e.target.value)}
+              className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+            />
+            <div className="flex gap-2 flex-wrap">
+              {["low", "medium", "high", "critical"].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setNewPriority(p)}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                    newPriority === p
+                      ? PRIORITY_COLORS[p] + " ring-2 ring-white/30"
+                      : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={handleCreate}
+                disabled={creating || !newTitle.trim()}
+              >
+                {creating ? <Loader2 size={16} className="animate-spin mr-2" /> : <Plus size={16} className="mr-2" />}
+                Create
+              </Button>
+              <Button variant="ghost" onClick={() => setShowForm(false)} className="text-slate-400">
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs defaultValue="all" className="space-y-6">
         <TabsList className="bg-slate-800 border-slate-700">
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="recurring">Recurring Jobs</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="all">All ({tasks.length})</TabsTrigger>
+          <TabsTrigger value="active">Active ({byStatus("in-progress").length + byStatus("todo").length})</TabsTrigger>
+          <TabsTrigger value="done">Done ({byStatus("done").length})</TabsTrigger>
         </TabsList>
 
-        {/* Templates Tab */}
-        <TabsContent value="templates" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {TASK_TEMPLATES.map((template) => (
-              <Card key={template.id} className="bg-slate-900 border-slate-700 hover:border-slate-600 transition-colors">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="text-3xl">{template.icon}</div>
-                    <Badge variant="outline" className="border-slate-600">
-                      {template.agent}
-                    </Badge>
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">{template.name}</h3>
-                  <p className="text-sm text-slate-400 mb-4">{template.description}</p>
-                  <Button
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                    onClick={() => handleCreateTask(template.id)}
-                  >
-                    <Plus size={16} className="mr-2" />
-                    Create Task
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
+        {["all", "active", "done"].map((tab) => {
+          const filtered =
+            tab === "all" ? tasks :
+            tab === "active" ? [...byStatus("todo"), ...byStatus("in-progress"), ...byStatus("review")] :
+            byStatus("done");
 
-        {/* Recurring Jobs Tab */}
-        <TabsContent value="recurring" className="space-y-4">
-          {RECURRING_JOBS.map((job) => (
-            <Card key={job.id} className="bg-slate-900 border-slate-700">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-lg font-semibold text-white">{job.name}</h3>
-                      <Badge className="bg-green-900 text-green-200">{job.status}</Badge>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm text-slate-400">
-                      <div className="flex items-center gap-1">
-                        <Calendar size={16} />
-                        <span>{job.schedule}</span>
+          return (
+            <TabsContent key={tab} value={tab} className="space-y-3">
+              {filtered.length === 0 ? (
+                <p className="text-slate-500 text-center py-12">
+                  {tab === "done" ? "No completed tasks yet." : "No tasks yet — create one above."}
+                </p>
+              ) : (
+                filtered.map((task) => (
+                  <Card key={task.id} className="bg-slate-900 border-slate-700 hover:border-slate-600 transition-colors">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-white mb-1 truncate">{task.title}</p>
+                          {task.description && (
+                            <p className="text-sm text-slate-400 mb-2">{task.description}</p>
+                          )}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge className={STATUS_COLORS[task.status] || "bg-slate-700 text-slate-300"}>
+                              {task.status}
+                            </Badge>
+                            <Badge className={PRIORITY_COLORS[task.priority] || "bg-slate-700 text-slate-300"}>
+                              {task.priority}
+                            </Badge>
+                            <span className="text-xs text-slate-600 flex items-center gap-1">
+                              <Clock size={12} />
+                              {new Date(task.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {task.status !== "done" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-green-400 hover:text-green-300 hover:bg-green-900/30 text-xs"
+                              onClick={() => handleStatusChange(task.id, "done")}
+                            >
+                              Mark done
+                            </Button>
+                          )}
+                          {task.status === "todo" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 text-xs"
+                              onClick={() => handleStatusChange(task.id, "in-progress")}
+                            >
+                              Start
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
+                            onClick={() => handleDelete(task.id)}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs text-slate-500">Last Run</p>
-                        <p className="text-slate-100">{job.lastRun}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500">Next Run</p>
-                        <p className="text-slate-100">{job.nextRun}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="mt-2"
-                    onClick={() => handleDeleteRecurring(job.id)}
-                  >
-                    <Trash2 size={16} />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </TabsContent>
-
-        {/* History Tab */}
-        <TabsContent value="history" className="space-y-4">
-          <div className="space-y-2">
-            {tasks.map((task) => (
-              <Card key={task.id} className="bg-slate-900 border-slate-700">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="font-medium text-white mb-1">{task.title}</p>
-                      <div className="flex items-center gap-4 text-sm text-slate-400">
-                        <span>{task.agent}</span>
-                        <span className="flex items-center gap-1">
-                          <Clock size={14} />
-                          {task.duration}ms
-                        </span>
-                      </div>
-                    </div>
-                    <Badge
-                      className={
-                        task.status === "completed"
-                          ? "bg-green-900 text-green-200"
-                          : "bg-blue-900 text-blue-200"
-                      }
-                    >
-                      {task.status}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </TabsContent>
+          );
+        })}
       </Tabs>
     </div>
   );

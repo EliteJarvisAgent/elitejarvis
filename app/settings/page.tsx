@@ -7,19 +7,36 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Save } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+const STORAGE_KEY = "jarvis_settings";
+
+const defaults = {
+  apiKey: "",
+  notifications: true,
+  autoUpdate: true,
+  darkMode: true,
+  metricsRefresh: 10,
+};
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState({
-    apiKey: "sk-proj-****",
-    notifications: true,
-    autoUpdate: true,
-    darkMode: true,
-    metricsRefresh: 10,
-  });
+  const [settings, setSettings] = useState(defaults);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) setSettings({ ...defaults, ...JSON.parse(saved) });
+    } catch {}
+  }, []);
 
   const handleSave = () => {
-    toast.success("Settings saved successfully");
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      toast.success("Settings saved");
+    } catch {
+      toast.error("Failed to save settings");
+    }
   };
 
   return (
