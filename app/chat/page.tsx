@@ -4,8 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Bot, Volume2, VolumeX, Zap } from "lucide-react";
+import { Send, Bot, Zap } from "lucide-react";
 import { api } from "@/lib/backend-client";
+import { VoiceOrb } from "@/components/VoiceOrb";
 
 interface Message {
   id: string;
@@ -35,7 +36,7 @@ export default function ChatPage() {
   ]);
   const [input, setInput]       = useState("");
   const [loading, setLoading]   = useState(false);
-  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
@@ -58,7 +59,7 @@ export default function ChatPage() {
   }, []);
 
   const speak = (text: string) => {
-    if (!ttsEnabled || typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
     window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(text);
     utt.rate = 0.95; utt.pitch = 0.88;
@@ -71,6 +72,9 @@ export default function ChatPage() {
       (v: SpeechSynthesisVoice) => v.lang.startsWith("en"),
     ];
     for (const fn of preferred) { const m = voices.find(fn); if (m) { utt.voice = m; break; } }
+    utt.onstart  = () => setIsSpeaking(true);
+    utt.onend    = () => setIsSpeaking(false);
+    utt.onerror  = () => setIsSpeaking(false);
     window.speechSynthesis.speak(utt);
   };
 
@@ -82,13 +86,11 @@ export default function ChatPage() {
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: text, timestamp: new Date() };
     setMessages((prev) => [...prev, userMsg]);
 
-    // Build message history for the gateway (last 20 messages)
     const history = [...messages, userMsg].slice(-20).map((m) => ({
       role: m.role,
       content: m.content,
     }));
 
-    // Add streaming placeholder
     const replyId = (Date.now() + 1).toString();
     setMessages((prev) => [...prev, { id: replyId, role: "assistant", content: "", timestamp: new Date(), streaming: true }]);
 
@@ -130,14 +132,12 @@ export default function ChatPage() {
         }
       }
 
-      // Finalize
       setMessages((prev) =>
         prev.map((m) => m.id === replyId ? { ...m, streaming: false } : m)
       );
 
       if (fullText) {
         speak(fullText);
-        // Save both messages to Supabase
         api.createMessage({ sender: "matthew", text }).catch(() => {});
         api.createMessage({ sender: "jarvis", text: fullText }).catch(() => {});
       }
@@ -170,110 +170,115 @@ export default function ChatPage() {
             <p className="text-sm text-green-400">Online — full capabilities</p>
           </div>
         </div>
-        <Button
-          variant="ghost" size="sm"
-          onClick={() => setTtsEnabled((v) => !v)}
-          className={`mt-2 gap-2 ${ttsEnabled ? "text-green-400" : "text-slate-500"}`}
-        >
-          {ttsEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-          {ttsEnabled ? "Voice on" : "Voice off"}
-        </Button>
       </div>
 
-      {/* Chat card */}
-      <Card className="flex-1 bg-slate-900 border-slate-700 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      {/* Main layout: chat + orb */}
+      <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
 
-          {/* Suggestions shown on first load */}
-          {messages.length === 1 && (
-            <div className="space-y-2">
-              <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Things you can ask Jarvis to do</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {CAPABILITIES.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => handleSuggestion(s)}
-                    className="text-left text-sm text-slate-400 bg-slate-800 hover:bg-slate-700 hover:text-white border border-slate-700 hover:border-slate-500 rounded-lg px-4 py-3 transition-all"
-                  >
-                    <Zap size={12} className="inline mr-2 text-blue-400" />
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+        {/* Chat card */}
+        <Card className="flex-1 bg-slate-900 border-slate-700 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
-          {/* Messages */}
-          {messages.map((message) => (
-            <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`flex gap-3 max-w-[85%] ${message.role === "user" ? "flex-row-reverse" : ""}`}>
-                {message.role === "assistant" && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center mt-1">
-                    <Bot size={15} className="text-white" />
-                  </div>
-                )}
-                <div className={`px-4 py-3 rounded-2xl ${
-                  message.role === "user"
-                    ? "bg-blue-600 text-white rounded-br-sm"
-                    : "bg-slate-800 text-slate-100 rounded-bl-sm"
-                }`}>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                  {message.streaming && (
-                    <span className="inline-block w-1.5 h-4 bg-blue-400 animate-pulse ml-0.5 align-text-bottom rounded-sm" />
-                  )}
-                  <p className="text-xs mt-2 opacity-40">
-                    {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {/* Loading dots (before stream starts) */}
-          {loading && messages[messages.length - 1]?.content === "" && (
-            <div className="flex justify-start">
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-                  <Bot size={15} className="text-white" />
-                </div>
-                <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-slate-800 flex items-center gap-1.5">
-                  {[0, 150, 300].map((delay) => (
-                    <div key={delay} className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+            {/* Suggestions shown on first load */}
+            {messages.length === 1 && (
+              <div className="space-y-2">
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Things you can ask Jarvis to do</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {CAPABILITIES.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => handleSuggestion(s)}
+                      className="text-left text-sm text-slate-400 bg-slate-800 hover:bg-slate-700 hover:text-white border border-slate-700 hover:border-slate-500 rounded-lg px-4 py-3 transition-all"
+                    >
+                      <Zap size={12} className="inline mr-2 text-blue-400" />
+                      {s}
+                    </button>
                   ))}
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div ref={scrollRef} />
-        </div>
+            {/* Messages */}
+            {messages.map((message) => (
+              <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`flex gap-3 max-w-[85%] ${message.role === "user" ? "flex-row-reverse" : ""}`}>
+                  {message.role === "assistant" && (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center mt-1">
+                      <Bot size={15} className="text-white" />
+                    </div>
+                  )}
+                  <div className={`px-4 py-3 rounded-2xl ${
+                    message.role === "user"
+                      ? "bg-blue-600 text-white rounded-br-sm"
+                      : "bg-slate-800 text-slate-100 rounded-bl-sm"
+                  }`}>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                    {message.streaming && (
+                      <span className="inline-block w-1.5 h-4 bg-blue-400 animate-pulse ml-0.5 align-text-bottom rounded-sm" />
+                    )}
+                    <p className="text-xs mt-2 opacity-40">
+                      {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
 
-        {/* Input */}
-        <div className="border-t border-slate-700 p-4 flex-shrink-0">
-          <div className="flex gap-2">
-            <Input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-              placeholder="Tell Jarvis what to build, research, or do..."
-              className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 text-sm"
-              disabled={loading}
-              autoFocus
-            />
-            <Button
-              onClick={handleSend}
-              disabled={loading || !input.trim()}
-              className="bg-blue-600 hover:bg-blue-700 flex-shrink-0"
-            >
-              <Send size={16} />
-            </Button>
+            {/* Loading dots */}
+            {loading && messages[messages.length - 1]?.content === "" && (
+              <div className="flex justify-start">
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                    <Bot size={15} className="text-white" />
+                  </div>
+                  <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-slate-800 flex items-center gap-1.5">
+                    {[0, 150, 300].map((delay) => (
+                      <div key={delay} className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={scrollRef} />
           </div>
-          <p className="text-xs text-slate-600 mt-2">
-            Connected to real openclaw — Jarvis can build, deploy, research, create agents, and more
-          </p>
+
+          {/* Input */}
+          <div className="border-t border-slate-700 p-4 flex-shrink-0">
+            <div className="flex gap-2">
+              <Input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                placeholder="Tell Jarvis what to build, research, or do..."
+                className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 text-sm"
+                disabled={loading}
+                autoFocus
+              />
+              <Button
+                onClick={handleSend}
+                disabled={loading || !input.trim()}
+                className="bg-blue-600 hover:bg-blue-700 flex-shrink-0"
+              >
+                <Send size={16} />
+              </Button>
+            </div>
+            <p className="text-xs text-slate-600 mt-2">
+              Connected to real openclaw — Jarvis can build, deploy, research, create agents, and more
+            </p>
+          </div>
+        </Card>
+
+        {/* Voice Orb panel */}
+        <div className="flex-shrink-0 w-40 flex flex-col items-center justify-center">
+          <VoiceOrb
+            onTranscript={sendMessage}
+            isSpeaking={isSpeaking}
+          />
         </div>
-      </Card>
+
+      </div>
     </div>
   );
 }
