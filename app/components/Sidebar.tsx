@@ -6,11 +6,9 @@ import {
   LayoutDashboard,
   Bot,
   CheckSquare,
-  MessageSquare,
   Settings,
   Menu,
   X,
-  Mic,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,11 +18,9 @@ export function Sidebar() {
   const pathname = usePathname();
 
   const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard", label: "Command Center", icon: LayoutDashboard },
     { href: "/agents", label: "Agents", icon: Bot },
     { href: "/tasks", label: "Tasks", icon: CheckSquare },
-    { href: "/chat", label: "Chat", icon: MessageSquare },
-    { href: "/wake", label: "Wake Jarvis", icon: Mic },
     { href: "/settings", label: "Settings", icon: Settings },
   ];
 
@@ -52,7 +48,7 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-screen w-64 bg-slate-900 border-r border-slate-700 p-6 transition-transform duration-300 z-40 md:z-0 ${
+        className={`fixed left-0 top-0 h-screen w-56 bg-[#080c14] border-r border-slate-800/60 p-5 transition-transform duration-300 z-40 md:z-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
@@ -94,7 +90,7 @@ export function Sidebar() {
       </aside>
 
       {/* Main content offset */}
-      <div className="md:ml-64" />
+      <div className="md:ml-56" />
     </>
   );
 }
