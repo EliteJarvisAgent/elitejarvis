@@ -210,7 +210,7 @@ export default function DashboardPage() {
   const doneTasks=tasks.filter(t=>t.status==="done");
 
   return(
-    <div className="h-screen flex overflow-hidden bg-[#060912]">
+    <div className="h-full flex overflow-hidden bg-[#060912]">
 
       {/* Stars */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -220,7 +220,10 @@ export default function DashboardPage() {
       </div>
 
       {/* ── LEFT: Orb + agents + chat ── */}
-      <div className="relative z-10 flex flex-col flex-1 overflow-y-auto pb-24">
+      <div className="relative z-10 flex flex-col flex-1 overflow-hidden">
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto">
 
         {/* Header */}
         <div className="w-full flex items-center justify-between px-8 pt-6 pb-6">
@@ -277,6 +280,20 @@ export default function DashboardPage() {
             <p className="text-slate-700 text-xs italic text-center leading-relaxed line-clamp-2">"{lastReply}"</p>
           )}
         </div>
+        </div>{/* end scrollable */}
+
+        {/* ── Input bar — pinned to bottom of left column ── */}
+        <div className="flex-shrink-0 bg-gradient-to-t from-[#060912] via-[#060912]/95 to-transparent pt-4 pb-5 px-6">
+          <div className="flex gap-2 bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl px-4 py-3">
+            <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
+              onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage(input);}}}
+              placeholder="Command Jarvis..." className="flex-1 bg-transparent text-white placeholder:text-slate-700 text-sm focus:outline-none"
+              disabled={loading} autoFocus/>
+            <button onClick={()=>sendMessage(input)} disabled={loading||!input.trim()} className="text-slate-600 hover:text-blue-400 transition-colors disabled:opacity-25">
+              <Send size={15}/>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* ── RIGHT: Tasks panel ── */}
@@ -313,18 +330,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Sticky input bar (left side only) ── */}
-      <div className="fixed bottom-0 left-56 right-80 z-20 bg-gradient-to-t from-[#060912] via-[#060912]/90 to-transparent pt-6 pb-5 px-6">
-        <div className="flex gap-2 bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl px-4 py-3">
-          <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
-            onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage(input);}}}
-            placeholder="Command Jarvis..." className="flex-1 bg-transparent text-white placeholder:text-slate-700 text-sm focus:outline-none"
-            disabled={loading} autoFocus/>
-          <button onClick={()=>sendMessage(input)} disabled={loading||!input.trim()} className="text-slate-600 hover:text-blue-400 transition-colors disabled:opacity-25">
-            <Send size={15}/>
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
