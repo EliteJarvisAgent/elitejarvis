@@ -79,9 +79,9 @@ function SpaceOrb({ onTranscript, isSpeaking, isListening, onListeningChange }: 
 
 // ── Energy lines ──────────────────────────────────────────────────────────────
 function EnergyLines({agents}:{agents:Agent[]}) {
-  const W=440,H=70; const cx=W/2; const xs=[55,168,272,385];
+  const W=1000,H=70; const cx=W/2; const xs=[125,375,625,875];
   return(
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="overflow-visible block">
+    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="overflow-visible block">
       <defs><filter id="lg"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
       {agents.map((a,i)=>{
         const ax=xs[i]; const path=`M ${cx} 0 C ${cx} ${H*0.5} ${ax} ${H*0.5} ${ax} ${H}`;
@@ -220,10 +220,10 @@ export default function DashboardPage() {
       </div>
 
       {/* ── LEFT: Orb + agents + chat ── */}
-      <div className="relative z-10 flex flex-col flex-1 overflow-y-auto px-6 pt-6 pb-24 items-center">
+      <div className="relative z-10 flex flex-col flex-1 overflow-y-auto pb-24">
 
         {/* Header */}
-        <div className="w-full max-w-lg flex items-center justify-between mb-8">
+        <div className="w-full flex items-center justify-between px-8 pt-6 pb-6">
           <div>
             <p className="text-[10px] text-blue-500 tracking-[0.3em] uppercase font-medium">Jarvis Intelligence</p>
             <h1 className="text-2xl font-bold text-white tracking-wide mt-0.5">Command Center</h1>
@@ -233,23 +233,25 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Orb */}
-        <SpaceOrb onTranscript={sendMessage} isSpeaking={isSpeaking} isListening={isListening} onListeningChange={setIsListening}/>
-        <p className="text-[11px] tracking-[0.25em] uppercase mt-2 mb-6 transition-colors duration-300"
-          style={{color:isListening?"#60a5fa":isSpeaking?"#c084fc":"#334155"}}>
-          {isListening?"Listening...":isSpeaking?"Speaking — tap to stop":"Tap to speak"}
-        </p>
+        {/* Orb — centered in full width */}
+        <div className="flex flex-col items-center">
+          <SpaceOrb onTranscript={sendMessage} isSpeaking={isSpeaking} isListening={isListening} onListeningChange={setIsListening}/>
+          <p className="text-[11px] tracking-[0.25em] uppercase mt-2 mb-6 transition-colors duration-300"
+            style={{color:isListening?"#60a5fa":isSpeaking?"#c084fc":"#334155"}}>
+            {isListening?"Listening...":isSpeaking?"Speaking — tap to stop":"Tap to speak"}
+          </p>
+        </div>
 
-        {/* Energy lines + agents */}
-        <div className="flex flex-col items-center gap-0 w-full max-w-[440px]">
+        {/* Energy lines + agents — stretch to fill width */}
+        <div className="flex flex-col items-center gap-0 px-6">
           <EnergyLines agents={agents}/>
-          <div className="w-full grid grid-cols-4 gap-3">
+          <div className="w-full grid grid-cols-4 gap-4">
             {agents.map(a=><AgentCard key={a.id} agent={a}/>)}
           </div>
         </div>
 
         {/* Chat section */}
-        <div className="w-full max-w-lg mt-10">
+        <div className="w-full px-6 mt-8">
           <button onClick={()=>setChatOpen(v=>!v)}
             className="flex items-center gap-2 text-[10px] text-slate-700 hover:text-slate-500 uppercase tracking-widest transition-colors mb-3">
             {chatOpen?<ChevronUp size={11}/>:<ChevronDown size={11}/>}
@@ -312,8 +314,8 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Sticky input bar (left side only) ── */}
-      <div className="fixed bottom-0 left-0 right-80 z-20 bg-gradient-to-t from-[#060912] via-[#060912]/90 to-transparent pt-6 pb-5 px-6" style={{marginLeft:"var(--sidebar-width, 224px)"}}>
-        <div className="flex gap-2 bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl px-4 py-3 max-w-lg mx-auto">
+      <div className="fixed bottom-0 left-56 right-80 z-20 bg-gradient-to-t from-[#060912] via-[#060912]/90 to-transparent pt-6 pb-5 px-6">
+        <div className="flex gap-2 bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl px-4 py-3">
           <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
             onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage(input);}}}
             placeholder="Command Jarvis..." className="flex-1 bg-transparent text-white placeholder:text-slate-700 text-sm focus:outline-none"
