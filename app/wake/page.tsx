@@ -21,7 +21,7 @@ export default function WakePage() {
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const dataArrayRef = useRef<Uint8Array | null>(null);
+  const dataArrayRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
   const rafRef = useRef<number>(0);
   const clapTimesRef = useRef<number[]>([]);
   const inClapRef = useRef(false);
