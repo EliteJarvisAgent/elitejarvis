@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
 type AppState = "idle" | "listening" | "thinking" | "speaking";
 
 const BRIEFING_MSG =
@@ -27,6 +30,7 @@ export default function WakePage() {
   const speakingRef = useRef(false);
   const recognitionRef = useRef<any>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // ── Audio / Clap detection ──────────────────────────────────────────────
   const tick = useCallback(() => {
@@ -206,33 +210,12 @@ export default function WakePage() {
   }
 
   // ── Text-to-Speech ──────────────────────────────────────────────────────
-  function speak(text: string) {
+  async function speak(text: string) {
     speakingRef.current = true;
     triggeredRef.current = false;
     setAppState("speaking");
     setStatusText("Speaking...");
     setTranscript(text.length > 320 ? text.slice(0, 320) + "…" : text);
-
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 0.95;
-    utt.pitch = 0.88;
-    utt.volume = 1.0;
-
-    // Prefer a deep British male voice for the JARVIS feel
-    const voices = window.speechSynthesis.getVoices();
-    const preferred: Array<(v: SpeechSynthesisVoice) => boolean> = [
-      (v) => v.name.includes("Daniel") && v.lang.startsWith("en"),
-      (v) => v.name.includes("Arthur"),
-      (v) => v.name.includes("Google UK English Male"),
-      (v) => v.name.includes("Microsoft George"),
-      (v) => v.lang === "en-GB" && !v.name.toLowerCase().includes("female"),
-      (v) => v.lang.startsWith("en-") && !v.name.toLowerCase().includes("female"),
-      (v) => v.lang.startsWith("en"),
-    ];
-    for (const fn of preferred) {
-      const match = voices.find(fn);
-      if (match) { utt.voice = match; break; }
-    }
 
     const done = () => {
       speakingRef.current = false;
@@ -245,15 +228,31 @@ export default function WakePage() {
       if (recognitionRef.current) try { recognitionRef.current.start(); } catch {}
     };
 
-    utt.onend = done;
-    utt.onerror = done;
-    utteranceRef.current = utt;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utt);
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/elevenlabs-tts`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error(`TTS ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = audioRef.current ?? new Audio();
+    audioRef.current = audio;
+    audio.pause();
+    audio.src = url;
+    audio.preload = "auto";
+    audio.onended = () => { URL.revokeObjectURL(url); done(); };
+    audio.onerror = () => { URL.revokeObjectURL(url); done(); };
+    await audio.play();
   }
 
   function stopSpeaking() {
     if (!speakingRef.current) return;
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
     window.speechSynthesis.cancel();
     speakingRef.current = false;
     utteranceRef.current = null;
@@ -270,6 +269,7 @@ export default function WakePage() {
   useEffect(() => {
     return () => {
       cancelAnimationFrame(rafRef.current);
+      if (audioRef.current) { audioRef.current.pause(); }
       window.speechSynthesis.cancel();
       if (recognitionRef.current) try { recognitionRef.current.stop(); } catch {}
     };

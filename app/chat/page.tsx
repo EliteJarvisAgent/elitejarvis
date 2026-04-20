@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,8 +40,10 @@ export default function ChatPage() {
   const [input, setInput]       = useState("");
   const [loading, setLoading]   = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isWaking, setIsWaking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
+  const audioRef  = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -58,30 +63,37 @@ export default function ChatPage() {
     }).catch(() => {});
   }, []);
 
-  const speak = (text: string) => {
+  const speak = async (text: string) => {
     if (typeof window === "undefined") return;
-    window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 0.95; utt.pitch = 0.88;
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = [
-      (v: SpeechSynthesisVoice) => v.name.includes("Daniel") && v.lang.startsWith("en"),
-      (v: SpeechSynthesisVoice) => v.name.includes("Arthur"),
-      (v: SpeechSynthesisVoice) => v.name.includes("Google UK English Male"),
-      (v: SpeechSynthesisVoice) => v.lang === "en-GB",
-      (v: SpeechSynthesisVoice) => v.lang.startsWith("en"),
-    ];
-    for (const fn of preferred) { const m = voices.find(fn); if (m) { utt.voice = m; break; } }
-    utt.onstart  = () => setIsSpeaking(true);
-    utt.onend    = () => setIsSpeaking(false);
-    utt.onerror  = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utt);
+    setIsSpeaking(true);
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/elevenlabs-tts`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error(`TTS ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = audioRef.current ?? new Audio();
+    audioRef.current = audio;
+    audio.pause();
+    audio.src = url;
+    audio.preload = "auto";
+    audio.onended = () => { URL.revokeObjectURL(url); setIsSpeaking(false); };
+    audio.onerror = () => { URL.revokeObjectURL(url); setIsSpeaking(false); };
+    await audio.play();
   };
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
     setInput("");
     setLoading(true);
+    setIsWaking(true);
+    setTimeout(() => setIsWaking(false), 700);
 
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: text, timestamp: new Date() };
     setMessages((prev) => [...prev, userMsg]);
@@ -166,8 +178,15 @@ export default function ChatPage() {
         <div>
           <h1 className="text-4xl font-bold text-white mb-1">Jarvis</h1>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <p className="text-sm text-green-400">Online — full capabilities</p>
+            <div className="relative w-2 h-2">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              {isWaking && (
+                <div className="absolute inset-0 rounded-full animate-ping bg-blue-400 opacity-75 scale-150" />
+              )}
+            </div>
+            <p className={`text-sm transition-colors duration-300 ${isWaking ? "text-blue-400" : "text-green-400"}`}>
+              {isWaking ? "Waking..." : "Online — full capabilities"}
+            </p>
           </div>
         </div>
       </div>
