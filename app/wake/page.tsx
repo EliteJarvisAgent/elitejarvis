@@ -144,7 +144,7 @@ export default function WakePage() {
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 512;
       analyser.smoothingTimeConstant = 0.15;
-      const data = new Uint8Array(analyser.frequencyBinCount);
+      const data = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount));
       ctx.createMediaStreamSource(stream).connect(analyser);
       audioCtxRef.current = ctx;
       analyserRef.current = analyser;
