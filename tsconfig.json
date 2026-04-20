@@ -37,7 +37,8 @@
   "include": [
     "app",
     "app/**/*",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "dist/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
