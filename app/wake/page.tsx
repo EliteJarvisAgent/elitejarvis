@@ -21,7 +21,7 @@ export default function WakePage() {
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const dataArrayRef = useRef<Uint8Array | null>(null);
+  const dataArrayRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
   const rafRef = useRef<number>(0);
   const clapTimesRef = useRef<number[]>([]);
   const inClapRef = useRef(false);
@@ -144,7 +144,7 @@ export default function WakePage() {
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 512;
       analyser.smoothingTimeConstant = 0.15;
-      const data = new Uint8Array(analyser.frequencyBinCount);
+      const data = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount));
       ctx.createMediaStreamSource(stream).connect(analyser);
       audioCtxRef.current = ctx;
       analyserRef.current = analyser;
