@@ -1,10 +1,114 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Globe, Activity, BarChart3, Cog, Loader2, CheckCircle2, ChevronDown, ChevronUp, Bot, Plus } from "lucide-react";
+import { Send, Globe, Activity, BarChart3, Cog, Loader2, CheckCircle2, ChevronDown, ChevronUp, Bot, Plus, Radio } from "lucide-react";
 import { api } from "@/lib/backend-client";
 import { supabase } from "@/lib/supabase-safe-client";
 import Link from "next/link";
+
+// ── Wake trigger hook — double clap + "daddy's home" phrase ───────────────────
+function useWakeTrigger(onWake: () => void, disabled: boolean) {
+  const activeRef    = useRef(false);
+  const onWakeRef    = useRef(onWake);
+  const disabledRef  = useRef(disabled);
+  onWakeRef.current  = onWake;
+  disabledRef.current = disabled;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    activeRef.current = true;
+    let animFrame = 0;
+    let clapStream: MediaStream | null = null;
+    let recognition: any = null;
+    let lastSpike = 0;
+    let clapCount = 0;
+    let recRestarting = false;
+
+    // ── Clap detection ──────────────────────────────────────────────────────
+    async function startClap() {
+      try {
+        clapStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const ctx      = new AudioContext();
+        const src      = ctx.createMediaStreamSource(clapStream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        src.connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+
+        const tick = () => {
+          if (!activeRef.current) return;
+          analyser.getByteFrequencyData(data);
+          const peak = Math.max(...Array.from(data));
+          const now  = Date.now();
+
+          if (peak > 175) {
+            const gap = now - lastSpike;
+            if (gap > 80 && gap < 700) {
+              clapCount++;
+              if (clapCount >= 2 && !disabledRef.current) {
+                clapCount = 0;
+                onWakeRef.current();
+              }
+            } else if (gap >= 700) {
+              clapCount = 1;
+            }
+            lastSpike = now;
+          }
+          animFrame = requestAnimationFrame(tick);
+        };
+        tick();
+      } catch {}
+    }
+
+    // ── Phrase detection — continuous recognition ───────────────────────────
+    function startPhrase() {
+      const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SR) return;
+      recognition = new SR();
+      recognition.continuous    = true;
+      recognition.interimResults = true;
+      recognition.lang          = "en-US";
+
+      recognition.onresult = (e: any) => {
+        if (disabledRef.current) return;
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript.toLowerCase();
+          if (
+            t.includes("daddy") ||
+            t.includes("wake up") ||
+            t.includes("jarvis wake") ||
+            t.includes("good morning jarvis")
+          ) {
+            onWakeRef.current();
+          }
+        }
+      };
+
+      recognition.onend = () => {
+        if (!activeRef.current || recRestarting) return;
+        recRestarting = true;
+        setTimeout(() => {
+          recRestarting = false;
+          if (activeRef.current) {
+            try { recognition.start(); } catch {}
+          }
+        }, 1000);
+      };
+
+      try { recognition.start(); } catch {}
+    }
+
+    startClap();
+    startPhrase();
+
+    return () => {
+      activeRef.current = false;
+      cancelAnimationFrame(animFrame);
+      clapStream?.getTracks().forEach(t => t.stop());
+      try { recognition?.stop(); } catch {}
+    };
+  }, []); // run once on mount
+}
 
 interface Message { id: string; role: "user"|"assistant"; content: string; streaming?: boolean; }
 interface ActiveTask { id: string; title: string; status: string; assignee_id: string|null; }
@@ -146,8 +250,26 @@ export default function DashboardPage() {
   const [tasks,setTasks]               = useState<ActiveTask[]>([]);
   const [chatOpen,setChatOpen]         = useState(false);
   const [lastReply,setLastReply]       = useState("");
+  const [wakeFlash,setWakeFlash]       = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
+
+  const handleWake = useCallback(() => {
+    setWakeFlash(true);
+    setTimeout(() => setWakeFlash(false), 2000);
+    sendMessage("Daddy's home. Give me a full briefing — weather in Floyd's Knobs, any active tasks Jarvis is working on, and what I should focus on today. Keep it sharp, sir.");
+  }, []); // sendMessage added below via ref
+
+  // Keep sendMessage ref stable for the wake hook
+  const sendMessageRef = useRef<(t: string) => void>(() => {});
+
+  const stableWake = useCallback(() => {
+    sendMessageRef.current("Daddy's home. Give me a full briefing — weather in Floyd's Knobs, any active tasks Jarvis is working on, and what I should focus on today. Keep it sharp, sir.");
+    setWakeFlash(true);
+    setTimeout(() => setWakeFlash(false), 2000);
+  }, []);
+
+  useWakeTrigger(stableWake, loading || isListening);
 
   useEffect(()=>{scrollRef.current?.scrollIntoView({behavior:"smooth"});},[messages]);
 
@@ -182,7 +304,10 @@ export default function DashboardPage() {
     window.speechSynthesis.speak(utt);
   };
 
-  const sendMessage=async(text:string)=>{
+  // Keep ref in sync so wake trigger always calls current sendMessage
+  useEffect(() => { sendMessageRef.current = sendMessage; });
+
+  async function sendMessage(text:string) {
     if(!text.trim()||loading)return; setInput(""); setLoading(true);
     const userMsg:Message={id:Date.now().toString(),role:"user",content:text};
     setMessages(prev=>[...prev,userMsg]);
@@ -231,8 +356,16 @@ export default function DashboardPage() {
             <p className="text-[10px] text-blue-500 tracking-[0.3em] uppercase font-medium">Jarvis Intelligence</p>
             <h1 className="text-2xl font-bold text-white tracking-wide mt-0.5">Command Center</h1>
           </div>
-          <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block"/> All systems nominal
+          <div className="flex items-center gap-3">
+            {wakeFlash && (
+              <span className="flex items-center gap-1.5 text-[11px] text-blue-400 animate-pulse">
+                <Radio size={11}/> Wake triggered
+              </span>
+            )}
+            <span className="flex items-center gap-1.5 text-[11px] text-slate-600">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block"/>
+              All systems nominal
+            </span>
           </div>
         </div>
 
