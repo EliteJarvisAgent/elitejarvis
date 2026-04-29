@@ -320,7 +320,7 @@ export default function DashboardPage() {
     setMessages([]);
     const today=new Date().toDateString();
     localStorage.setItem("jarvis_last_clear",today);
-    supabase.from("messages").delete().neq("id","00000000-0000-0000-0000-000000000000").then(()=>{}).catch(()=>{});
+    supabase.from("messages").delete().neq("id","00000000-0000-0000-0000-000000000000").then(()=>{},()=>{});
   },[]);
 
   useEffect(()=>{
