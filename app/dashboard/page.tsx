@@ -138,7 +138,12 @@ function SpaceOrb({ onTranscript, isSpeaking, isListening, onListeningChange }: 
 
   const startListening=useCallback(async()=>{
     const SR=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition; if(!SR)return;
-    emitted.current=false; const rec=new SR(); rec.lang="en-US"; rec.interimResults=false; recRef.current=rec;
+    emitted.current=false;
+    const rec=new SR();
+    rec.lang="en-US";
+    rec.continuous=true;
+    rec.interimResults=true;
+    recRef.current=rec;
     try {
       const s=await navigator.mediaDevices.getUserMedia({audio:true}); stream.current=s;
       const ctx=new AudioContext(); const src=ctx.createMediaStreamSource(s);
@@ -146,8 +151,20 @@ function SpaceOrb({ onTranscript, isSpeaking, isListening, onListeningChange }: 
       const data=new Uint8Array(an.frequencyBinCount);
       const tick=()=>{an.getByteFrequencyData(data);setVolume(Math.min(data.reduce((a,b)=>a+b,0)/data.length/80,1));frame.current=requestAnimationFrame(tick);};tick();
     }catch{}
-    rec.onresult=(e:any)=>{const t=e.results[0]?.[0]?.transcript?.trim();if(t&&!emitted.current){emitted.current=true;onTranscript(t);}};
-    rec.onend=()=>{stopAudio();onListeningChange(false);}; rec.start(); onListeningChange(true);
+    rec.onresult=(e:any)=>{
+      let final="";
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        if(e.results[i].isFinal) final+=e.results[i][0].transcript;
+      }
+      if(final.trim()&&!emitted.current){
+        emitted.current=true;
+        rec.stop();
+        onTranscript(final.trim());
+      }
+    };
+    rec.onend=()=>{stopAudio();onListeningChange(false);};
+    rec.start();
+    onListeningChange(true);
   },[onTranscript,stopAudio,onListeningChange]);
 
   const stopListening=useCallback(()=>{recRef.current?.stop();stopAudio();onListeningChange(false);},[stopAudio,onListeningChange]);
