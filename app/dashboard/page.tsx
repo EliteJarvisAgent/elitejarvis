@@ -316,13 +316,27 @@ export default function DashboardPage() {
     setAgents(prev=>prev.map((a,i)=>i===0?{...a,working:hasActive}:a));
   }).catch(()=>{}),[]);
 
+  const clearConversation=useCallback(()=>{
+    setMessages([]);
+    const today=new Date().toDateString();
+    localStorage.setItem("jarvis_last_clear",today);
+    supabase.from("messages").delete().neq("id","00000000-0000-0000-0000-000000000000").then(()=>{}).catch(()=>{});
+  },[]);
+
   useEffect(()=>{
+    const today=new Date().toDateString();
+    const lastClear=localStorage.getItem("jarvis_last_clear");
     api.fetchMessages().then((rows:any[])=>{
       if(!rows.length)return;
-      setMessages(rows.slice(-30).map(r=>({id:r.id,role:r.sender==="matthew"?"user":"assistant",content:r.text})));
+      // Auto-clear on first load of a new day
+      if(lastClear!==today){
+        clearConversation();
+      } else {
+        setMessages(rows.slice(-30).map(r=>({id:r.id,role:r.sender==="matthew"?"user":"assistant",content:r.text})));
+      }
     }).catch(()=>{});
     loadTasks();
-  },[loadTasks]);
+  },[loadTasks,clearConversation]);
 
   useEffect(()=>{
     const ch=supabase.channel("cmd-live").on("postgres_changes",{event:"*",schema:"public",table:"tasks"},()=>loadTasks()).subscribe();
@@ -428,11 +442,19 @@ export default function DashboardPage() {
 
         {/* Chat section */}
         <div className="w-full px-6 mt-8">
-          <button onClick={()=>setChatOpen(v=>!v)}
-            className="flex items-center gap-2 text-[10px] text-slate-700 hover:text-slate-500 uppercase tracking-widest transition-colors mb-3">
-            {chatOpen?<ChevronUp size={11}/>:<ChevronDown size={11}/>}
-            {chatOpen?"Hide conversation":"Show conversation"}
-          </button>
+          <div className="flex items-center justify-between mb-3">
+            <button onClick={()=>setChatOpen(v=>!v)}
+              className="flex items-center gap-2 text-[10px] text-slate-700 hover:text-slate-500 uppercase tracking-widest transition-colors">
+              {chatOpen?<ChevronUp size={11}/>:<ChevronDown size={11}/>}
+              {chatOpen?"Hide conversation":"Show conversation"}
+            </button>
+            {messages.length>0&&(
+              <button onClick={clearConversation}
+                className="text-[10px] text-slate-700 hover:text-red-500 uppercase tracking-widest transition-colors">
+                Clear
+              </button>
+            )}
+          </div>
           {chatOpen&&(
             <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
               {messages.map(msg=>(
