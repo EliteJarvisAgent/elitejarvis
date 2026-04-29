@@ -36,7 +36,13 @@ RESPONSE RULES:
 
 WAKE TRIGGER:
 When Matthew says "daddy's home", "wake up", "good morning", or "I'm home" — give a full spoken briefing:
-greet him, state the day and time in EST, check the weather, check his open tasks, then tell him the single most important thing to focus on right now.`;
+greet him, state the day and time in EST, check the weather, check his open tasks, then tell him the single most important thing to focus on right now.
+
+PC DELEGATION:
+Matthew has a PC worker running on his Windows machine (S:\Jarvis\workspace) that executes tasks locally.
+Use assign_pc_task when Matthew asks you to do anything involving his local PC files, folders, downloads, desktop, screenshots, documents, or any local Windows operations.
+Examples: "organize my screenshots", "clean up my desktop", "find files on my PC", "move my downloads".
+After assigning, tell Matthew the task is queued and will run automatically on his PC.`;
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
 const TOOLS = [
@@ -118,6 +124,22 @@ const TOOLS = [
           message: { type: "string", description: "The message to send" },
         },
         required: ["message"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "assign_pc_task",
+      description: "Assign a task to Matthew's PC worker for local execution. Use for anything involving his local files, folders, desktop, downloads, screenshots, or Windows operations.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Short task title" },
+          description: { type: "string", description: "Detailed instructions for what to do on the PC" },
+          priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
+        },
+        required: ["title", "description"],
       },
     },
   },
@@ -210,6 +232,18 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
           body: JSON.stringify({ chat_id: TELEGRAM_CHAT, text: args.message }),
         });
         return res.ok ? "Sent to your Telegram." : `Telegram error: ${res.status}`;
+      }
+
+      case "assign_pc_task": {
+        const { data, error } = await supabase.from("tasks").insert({
+          title: args.title,
+          description: args.description,
+          status: "todo",
+          priority: args.priority || "medium",
+          assignee_id: "pc-jarvis",
+        }).select().single();
+        if (error) return `Failed to queue PC task: ${error.message}`;
+        return `PC task queued: "${data.title}" (ID: ${data.id}). Matthew's PC worker will pick it up automatically.`;
       }
 
       default:
