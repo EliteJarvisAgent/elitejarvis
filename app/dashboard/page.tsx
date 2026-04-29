@@ -136,14 +136,11 @@ function SpaceOrb({ onTranscript, isSpeaking, isListening, onListeningChange }: 
 
   const stopAudio=useCallback(()=>{ cancelAnimationFrame(frame.current); stream.current?.getTracks().forEach(t=>t.stop()); stream.current=null; analyser.current=null; setVolume(0); },[]);
 
+  const listeningRef=useRef(false);
   const startListening=useCallback(async()=>{
     const SR=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition; if(!SR)return;
     emitted.current=false;
-    const rec=new SR();
-    rec.lang="en-US";
-    rec.continuous=true;
-    rec.interimResults=true;
-    recRef.current=rec;
+    listeningRef.current=true;
     try {
       const s=await navigator.mediaDevices.getUserMedia({audio:true}); stream.current=s;
       const ctx=new AudioContext(); const src=ctx.createMediaStreamSource(s);
@@ -151,23 +148,44 @@ function SpaceOrb({ onTranscript, isSpeaking, isListening, onListeningChange }: 
       const data=new Uint8Array(an.frequencyBinCount);
       const tick=()=>{an.getByteFrequencyData(data);setVolume(Math.min(data.reduce((a,b)=>a+b,0)/data.length/80,1));frame.current=requestAnimationFrame(tick);};tick();
     }catch{}
-    rec.onresult=(e:any)=>{
-      let final="";
-      for(let i=e.resultIndex;i<e.results.length;i++){
-        if(e.results[i].isFinal) final+=e.results[i][0].transcript;
-      }
-      if(final.trim()&&!emitted.current){
-        emitted.current=true;
-        rec.stop();
-        onTranscript(final.trim());
-      }
+
+    const startRec=()=>{
+      if(!listeningRef.current) return;
+      const rec=new SR();
+      rec.lang="en-US"; rec.continuous=false; rec.interimResults=false;
+      recRef.current=rec;
+      rec.onresult=(e:any)=>{
+        const t=e.results[0]?.[0]?.transcript?.trim();
+        if(t&&!emitted.current){
+          emitted.current=true;
+          listeningRef.current=false;
+          stopAudio();
+          onListeningChange(false);
+          onTranscript(t);
+        }
+      };
+      // Chrome cuts off — restart immediately unless we got a result
+      rec.onend=()=>{
+        if(listeningRef.current&&!emitted.current){
+          setTimeout(startRec, 100);
+        } else {
+          stopAudio();
+          onListeningChange(false);
+        }
+      };
+      try{ rec.start(); }catch{}
     };
-    rec.onend=()=>{stopAudio();onListeningChange(false);};
-    rec.start();
+
     onListeningChange(true);
+    startRec();
   },[onTranscript,stopAudio,onListeningChange]);
 
-  const stopListening=useCallback(()=>{recRef.current?.stop();stopAudio();onListeningChange(false);},[stopAudio,onListeningChange]);
+  const stopListening=useCallback(()=>{
+    listeningRef.current=false;
+    recRef.current?.stop();
+    stopAudio();
+    onListeningChange(false);
+  },[stopAudio,onListeningChange]);
 
   const handleClick=()=>{ if(isSpeaking){window.speechSynthesis?.cancel();return;} isListening?stopListening():startListening(); };
   const scale=1+vol*0.12; const glow=active?0.55+vol*0.45:0.22;
