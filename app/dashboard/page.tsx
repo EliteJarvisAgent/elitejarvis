@@ -295,13 +295,18 @@ export default function DashboardPage() {
   },[loadTasks]);
 
   const speak=(text:string)=>{
-    if(typeof window==="undefined")return; window.speechSynthesis.cancel();
+    if(typeof window==="undefined")return;
+    window.speechSynthesis.cancel();
     const utt=new SpeechSynthesisUtterance(text); utt.rate=0.95; utt.pitch=0.88;
-    const vs=window.speechSynthesis.getVoices();
-    const pref=[(v:SpeechSynthesisVoice)=>v.name.includes("Daniel")&&v.lang.startsWith("en"),(v:SpeechSynthesisVoice)=>v.name.includes("Arthur"),(v:SpeechSynthesisVoice)=>v.name.includes("Google UK English Male"),(v:SpeechSynthesisVoice)=>v.lang==="en-GB",(v:SpeechSynthesisVoice)=>v.lang.startsWith("en")];
-    for(const fn of pref){const m=vs.find(fn);if(m){utt.voice=m;break;}}
     utt.onstart=()=>setIsSpeaking(true); utt.onend=()=>setIsSpeaking(false); utt.onerror=()=>setIsSpeaking(false);
-    window.speechSynthesis.speak(utt);
+    const doSpeak=()=>{
+      const vs=window.speechSynthesis.getVoices();
+      const pref=[(v:SpeechSynthesisVoice)=>v.name.includes("Daniel")&&v.lang.startsWith("en"),(v:SpeechSynthesisVoice)=>v.name.includes("Arthur"),(v:SpeechSynthesisVoice)=>v.name.includes("Google UK English Male"),(v:SpeechSynthesisVoice)=>v.lang==="en-GB",(v:SpeechSynthesisVoice)=>v.lang.startsWith("en")];
+      for(const fn of pref){const m=vs.find(fn);if(m){utt.voice=m;break;}}
+      window.speechSynthesis.speak(utt);
+    };
+    if(window.speechSynthesis.getVoices().length>0){doSpeak();}
+    else{window.speechSynthesis.addEventListener("voiceschanged",doSpeak,{once:true});}
   };
 
   // Keep ref in sync so wake trigger always calls current sendMessage

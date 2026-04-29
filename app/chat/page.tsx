@@ -63,29 +63,54 @@ export default function ChatPage() {
     }).catch(() => {});
   }, []);
 
+  const browserSpeak = (text: string) => {
+    if (typeof window === "undefined") return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.rate = 0.95; utt.pitch = 0.88;
+    utt.onstart = () => setIsSpeaking(true);
+    utt.onend = () => setIsSpeaking(false);
+    utt.onerror = () => setIsSpeaking(false);
+    const doSpeak = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const pref = voices.find(v => v.name.includes("Daniel") && v.lang.startsWith("en"))
+        || voices.find(v => v.name.includes("Google UK English Male"))
+        || voices.find(v => v.lang === "en-GB")
+        || voices.find(v => v.lang.startsWith("en"));
+      if (pref) utt.voice = pref;
+      window.speechSynthesis.speak(utt);
+    };
+    if (window.speechSynthesis.getVoices().length > 0) {
+      doSpeak();
+    } else {
+      window.speechSynthesis.addEventListener("voiceschanged", doSpeak, { once: true });
+    }
+  };
+
   const speak = async (text: string) => {
     if (typeof window === "undefined") return;
     setIsSpeaking(true);
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/elevenlabs-tts`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) throw new Error(`TTS ${res.status}`);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const audio = audioRef.current ?? new Audio();
-    audioRef.current = audio;
-    audio.pause();
-    audio.src = url;
-    audio.preload = "auto";
-    audio.onended = () => { URL.revokeObjectURL(url); setIsSpeaking(false); };
-    audio.onerror = () => { URL.revokeObjectURL(url); setIsSpeaking(false); };
-    await audio.play();
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error("tts_failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = audioRef.current ?? new Audio();
+      audioRef.current = audio;
+      audio.pause();
+      audio.src = url;
+      audio.preload = "auto";
+      audio.onended = () => { URL.revokeObjectURL(url); setIsSpeaking(false); };
+      audio.onerror = () => { URL.revokeObjectURL(url); setIsSpeaking(false); };
+      await audio.play();
+    } catch {
+      setIsSpeaking(false);
+      browserSpeak(text);
+    }
   };
 
   const sendMessage = async (text: string) => {
